@@ -1,0 +1,410 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Controllers;
+
+use App\Core\Controller;
+use App\Core\Database;
+use App\Core\Auth;
+use App\Services\AuditService;
+use App\Models\Compra;
+use App\Models\CompraDetalle;
+use App\Models\Proveedor;
+use App\Models\Producto;
+use App\Models\Deposito;
+use App\Models\Movimiento;
+use App\Models\Lote;
+
+class CompraController extends Controller
+{
+    public function index(): void
+    {
+        $sucursalId = $this->sucursalId();
+        $compras = Database::query(
+            "SELECT c.*, p.nombre as proveedor_nombre
+             FROM compras c
+             JOIN proveedores p ON c.proveedor_id = p.proveedor_id
+             WHERE c.sucursal_id = ?
+             ORDER BY c.fecha_compra DESC",
+            [$sucursalId]
+        )->fetchAll();
+
+        $this->view('compras.index', [
+            'page_title' => 'Gestión de Compras',
+            'page_subtitle' => 'Entradas de mercancía y facturas de proveedores',
+            'compras' => $compras
+        ]);
+    }
+
+    public function crear(): void
+    {
+        $proveedores = Proveedor::all('nombre ASC');
+        $depositos = Deposito::where('sucursal_id', $this->sucursalId());
+
+        $this->view('compras.crear', [
+            'page_title' => 'Nueva Compra',
+            'page_subtitle' => 'Registrar entrada de mercancía',
+            'proveedores' => $proveedores,
+            'depositos' => $depositos
+        ]);
+    }
+
+    public function detalle(int $id): void
+    {
+        $compra = $this->findCompra($id);
+        if (!$compra) return;
+
+        $detalles = Database::query(
+            "SELECT cd.*, pr.nombre as producto_nombre, pr.codigo as producto_codigo,
+                    (cd.cantidad - cd.cantidad_recibida) AS cantidad_pendiente
+             FROM compras_detalle cd
+             JOIN productos pr ON cd.producto_id = pr.producto_id
+             WHERE cd.compra_id = ?",
+            [$id]
+        )->fetchAll();
+
+        $this->view('compras.detalle', [
+            'page_title' => 'Compra #' . ($compra['numero_factura'] ?? $id),
+            'page_subtitle' => 'Detalle de compra',
+            'compra' => $compra,
+            'detalles' => $detalles,
+        ]);
+    }
+
+    // ── Recepción parcial / completa ─────────────────────────────────────────
+
+    public function recibir(int $id): void
+    {
+        $compra = $this->findCompra($id);
+        if (!$compra) return;
+
+        if ($compra['estado'] === 'recibida') {
+            $this->info('Esta orden ya fue recibida completamente.');
+            $this->redirect("/compras/{$id}");
+            return;
+        }
+        if ($compra['estado'] === 'cancelada') {
+            $this->error('La orden está cancelada.');
+            $this->redirect("/compras/{$id}");
+            return;
+        }
+
+        $items = Database::query(
+            "SELECT cd.*, pr.nombre as producto_nombre, pr.codigo as producto_codigo,
+                    (cd.cantidad - cd.cantidad_recibida) AS pendiente
+             FROM compras_detalle cd
+             JOIN productos pr ON cd.producto_id = pr.producto_id
+             WHERE cd.compra_id = ? AND cd.cantidad > cd.cantidad_recibida
+             ORDER BY pr.nombre",
+            [$id]
+        )->fetchAll();
+
+        $depositos = Deposito::where('sucursal_id', $this->sucursalId());
+
+        $this->view('compras.recibir', [
+            'page_title' => 'Registrar Recepción',
+            'page_subtitle' => 'Compra #' . ($compra['numero_factura'] ?? $id),
+            'compra' => $compra,
+            'items' => $items,
+            'depositos' => $depositos,
+        ]);
+    }
+
+    public function procesarRecepcion(int $id): void
+    {
+        if (!$this->verifyCsrf()) return;
+
+        $compra = $this->findCompra($id);
+        if (!$compra) return;
+
+        if (in_array($compra['estado'], ['recibida', 'cancelada'])) {
+            $this->error('Estado de la orden no permite recepción.');
+            $this->redirect("/compras/{$id}");
+            return;
+        }
+
+        $cantidadesRecibidas = $this->request->post('cantidad_recibida', []);
+        $depositoOverride    = (int) $this->request->post('deposito_id', 0);
+
+        try {
+            Database::beginTransaction();
+
+            $pendientes = Database::query(
+                "SELECT cd.*, pr.nombre as producto_nombre
+                 FROM compras_detalle cd
+                 JOIN productos pr ON cd.producto_id = pr.producto_id
+                 WHERE cd.compra_id = ? AND cd.cantidad > cd.cantidad_recibida",
+                [$id]
+            )->fetchAll();
+
+            foreach ($pendientes as $linea) {
+                $detalleId  = (int) $linea['detalle_id'];
+                $cantPedida = (float) $linea['cantidad'];
+                $cantYaRec  = (float) $linea['cantidad_recibida'];
+                $pendiente  = $cantPedida - $cantYaRec;
+
+                $cantNueva = isset($cantidadesRecibidas[$detalleId])
+                    ? min((float) $cantidadesRecibidas[$detalleId], $pendiente)
+                    : 0.0;
+
+                if ($cantNueva <= 0) continue;
+
+                $productoId = (int) $linea['producto_id'];
+                $costoUnit  = (float) $linea['costo'];
+                $depositoId = $depositoOverride ?: (int) $compra['deposito_id'];
+
+                $this->recibirLinea(
+                    productoId:   $productoId,
+                    depositoId:   $depositoId,
+                    cantidadBase: $cantNueva,
+                    costoUnit:    $costoUnit,
+                    compraId:     $id,
+                    factura:      $compra['numero_factura'] ?? '',
+                    numeroLote:   $linea['numero_lote'] ?? null,
+                    fechaVence:   $linea['fecha_vencimiento'] ?? null,
+                );
+
+                Database::query(
+                    "UPDATE compras_detalle SET cantidad_recibida = cantidad_recibida + ? WHERE detalle_id = ?",
+                    [$cantNueva, $detalleId]
+                );
+            }
+
+            // Determinar nuevo estado de la orden
+            $sinRecibir = (int) Database::query(
+                "SELECT COUNT(*) as t FROM compras_detalle WHERE compra_id = ? AND cantidad > cantidad_recibida",
+                [$id]
+            )->fetch()['t'];
+
+            $nuevoEstado = $sinRecibir === 0 ? 'recibida' : 'parcialmente_recibida';
+            Database::query(
+                "UPDATE compras SET estado = ?" . ($nuevoEstado === 'recibida' ? ", fecha_recepcion = NOW()" : "") . " WHERE compra_id = ?",
+                [$nuevoEstado, $id]
+            );
+
+            Database::commit();
+
+            AuditService::log(
+                'compras.recibir',
+                "Recepción " . ($nuevoEstado === 'recibida' ? 'completa' : 'parcial') . " — Compra #{$id}",
+                $id, 'compra', ['estado' => $nuevoEstado], $this->empresaId()
+            );
+
+            $msg = $nuevoEstado === 'recibida'
+                ? 'Recepción completa registrada. Inventario actualizado.'
+                : 'Recepción parcial registrada. Quedan artículos pendientes.';
+            $this->success($msg);
+            $this->redirect("/compras/{$id}");
+
+        } catch (\Exception $e) {
+            Database::rollback();
+            $this->error('Error al procesar recepción: ' . $e->getMessage());
+            $this->redirect("/compras/{$id}/recibir");
+        }
+    }
+
+    // ── Crear orden de compra ─────────────────────────────────────────────────
+
+    public function guardar(): void
+    {
+        if (!$this->request->isPost()) {
+            $this->json(['error' => 'Método no permitido'], 405);
+            return;
+        }
+
+        $data = $this->request->json();
+        $esPendiente = !empty($data['guardar_como_pendiente']);
+
+        try {
+            Database::beginTransaction();
+
+            $mainDepositoId = !empty($data['items']) ? (int) $data['items'][0]['deposito_id'] : 0;
+
+            $compra = Compra::create([
+                'proveedor_id'            => $data['proveedor_id'],
+                'sucursal_id'             => $this->sucursalId(),
+                'empresa_id'              => $this->empresaId(),
+                'deposito_id'             => $mainDepositoId,
+                'numero_factura'          => $data['numero_factura'] ?? '',
+                'numero_factura_proveedor'=> $data['numero_factura'] ?? '',
+                'monto_subtotal'          => $data['subtotal'] ?? 0,
+                'monto_itbms'             => $data['itbms'] ?? 0,
+                'monto_total'             => $data['total'] ?? 0,
+                'estado'                  => $esPendiente ? 'pendiente' : 'recibida',
+                'fecha_compra'            => $data['fecha_compra'] ?? date('Y-m-d'),
+                'notas'                   => $data['notas'] ?? '',
+                'usuario_id'              => Auth::id(),
+            ]);
+
+            foreach ($data['items'] as $item) {
+                $productoId     = (int)   $item['producto_id'];
+                $cantidadOrig   = (float) $item['cantidad'];
+                $costoOriginal  = (float) $item['costo'];
+                $depositoId     = (int)  ($item['deposito_id'] ?? $mainDepositoId);
+                $unidadId       = !empty($item['unidad_id']) ? (int) $item['unidad_id'] : null;
+
+                $factor = (float)($item['factor'] ?? 1);
+                if ($factor < 1) $factor = 1.0;
+                if ($unidadId) {
+                    $uRow = Database::query(
+                        "SELECT factor_conversion FROM productos_unidades WHERE unidad_id = ? AND producto_id = ?",
+                        [$unidadId, $productoId]
+                    )->fetch();
+                    if ($uRow) $factor = (float) $uRow['factor_conversion'];
+                }
+
+                $cantidadBase    = $cantidadOrig * $factor;
+                $costoUnitBase   = $factor > 0 ? $costoOriginal / $factor : $costoOriginal;
+                $cantidadRecibida = $esPendiente ? 0.0 : $cantidadBase;
+
+                CompraDetalle::create([
+                    'compra_id'         => $compra->compra_id,
+                    'producto_id'       => $productoId,
+                    'cantidad'          => $cantidadBase,
+                    'cantidad_recibida' => $cantidadRecibida,
+                    'costo'             => $costoUnitBase,
+                    'itbms'             => $item['itbms'] ?? 0,
+                    'total_linea'       => $cantidadOrig * $costoOriginal,
+                    'numero_lote'       => !empty($item['numero_lote']) ? trim($item['numero_lote']) : null,
+                    'fecha_vencimiento' => !empty($item['fecha_vencimiento']) ? $item['fecha_vencimiento'] : null,
+                    'fecha_fabricacion' => !empty($item['fecha_fabricacion']) ? $item['fecha_fabricacion'] : null,
+                ]);
+
+                if (!$esPendiente) {
+                    $this->recibirLinea(
+                        productoId:   $productoId,
+                        depositoId:   $depositoId,
+                        cantidadBase: $cantidadBase,
+                        costoUnit:    $costoUnitBase,
+                        compraId:     (int) $compra->compra_id,
+                        factura:      $data['numero_factura'] ?? '',
+                        numeroLote:   !empty($item['numero_lote']) ? trim($item['numero_lote']) : null,
+                        fechaVence:   !empty($item['fecha_vencimiento']) ? $item['fecha_vencimiento'] : null,
+                    );
+                }
+            }
+
+            Database::commit();
+            AuditService::log(
+                'compras.crear',
+                "Compra #{$compra->compra_id} creada" . ($esPendiente ? ' (orden pendiente)' : ' (recibida)'),
+                (int) $compra->compra_id, 'compra',
+                ['estado' => $esPendiente ? 'pendiente' : 'recibida', 'total' => $data['total'] ?? 0],
+                $this->empresaId()
+            );
+            $this->json(['success' => true, 'compra_id' => $compra->compra_id]);
+
+        } catch (\Exception $e) {
+            Database::rollback();
+            $this->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private function recibirLinea(
+        int     $productoId,
+        int     $depositoId,
+        float   $cantidadBase,
+        float   $costoUnit,
+        int     $compraId,
+        string  $factura,
+        ?string $numeroLote,
+        ?string $fechaVence,
+    ): void {
+        $invRow = Database::query(
+            "SELECT inventario_id, existencia, costo_promedio FROM inventario WHERE producto_id = ? AND deposito_id = ? LIMIT 1",
+            [$productoId, $depositoId]
+        )->fetch();
+
+        if (!$invRow) {
+            Database::query(
+                "INSERT INTO inventario (producto_id, deposito_id, existencia, ultimo_costo, costo_promedio, fecha_actualizacion_costo)
+                 VALUES (?, ?, 0, ?, ?, NOW())",
+                [$productoId, $depositoId, $costoUnit, $costoUnit]
+            );
+            $inventarioId = (int) Database::lastInsertId();
+            $oldQty       = 0.0;
+            $oldAvgCost   = $costoUnit;
+        } else {
+            $inventarioId = (int) $invRow['inventario_id'];
+            $oldQty       = (float) $invRow['existencia'];
+            $oldAvgCost   = (float) $invRow['costo_promedio'];
+        }
+
+        // Costo promedio ponderado
+        $newQty = $oldQty + $cantidadBase;
+        if ($oldQty <= 0) {
+            $newAvgCost = $costoUnit;
+        } elseif ($newQty > 0) {
+            $newAvgCost = (($oldQty * $oldAvgCost) + ($cantidadBase * $costoUnit)) / $newQty;
+        } else {
+            $newAvgCost = $costoUnit;
+        }
+
+        Movimiento::registrar(
+            $inventarioId, 'entrada', $cantidadBase, $compraId, 'compras',
+            "Compra Factura #{$factura}"
+        );
+
+        Database::query(
+            "UPDATE inventario SET ultimo_costo = ?, costo_promedio = ?, fecha_actualizacion_costo = NOW() WHERE inventario_id = ?",
+            [$costoUnit, $newAvgCost, $inventarioId]
+        );
+
+        Database::query(
+            "UPDATE productos SET costo = ? WHERE producto_id = ?",
+            [$costoUnit, $productoId]
+        );
+
+        if ($numeroLote) {
+            $loteExist = Database::query(
+                "SELECT lote_id, cantidad_actual FROM lotes WHERE producto_id=? AND deposito_id=? AND numero_lote=? LIMIT 1",
+                [$productoId, $depositoId, $numeroLote]
+            )->fetch();
+            if ($loteExist) {
+                $nuevoSaldo = (float) $loteExist['cantidad_actual'] + $cantidadBase;
+                Database::query("UPDATE lotes SET cantidad_actual=?,estado='activo' WHERE lote_id=?", [$nuevoSaldo, $loteExist['lote_id']]);
+                Database::query(
+                    "INSERT INTO lote_movimientos(lote_id,tipo,cantidad,saldo_anterior,saldo_nuevo,referencia_id,referencia_tipo) VALUES(?,'entrada',?,?,?,?,'compras')",
+                    [$loteExist['lote_id'], $cantidadBase, $loteExist['cantidad_actual'], $nuevoSaldo, $compraId]
+                );
+            } else {
+                $lote = Lote::create([
+                    'producto_id'     => $productoId,
+                    'deposito_id'     => $depositoId,
+                    'numero_lote'     => $numeroLote,
+                    'fecha_vencimiento' => $fechaVence,
+                    'cantidad_inicial' => $cantidadBase,
+                    'cantidad_actual' => $cantidadBase,
+                    'estado'          => 'activo',
+                ]);
+                Database::query(
+                    "INSERT INTO lote_movimientos(lote_id,tipo,cantidad,saldo_anterior,saldo_nuevo,referencia_id,referencia_tipo) VALUES(?,'entrada',?,0,?,?,'compras')",
+                    [$lote->lote_id, $cantidadBase, $cantidadBase, $compraId]
+                );
+            }
+        }
+    }
+
+    private function findCompra(int $id): ?array
+    {
+        $compra = Database::query(
+            "SELECT c.*, p.nombre as proveedor_nombre, u.username as usuario_nombre, d.nombre as deposito_nombre
+             FROM compras c
+             LEFT JOIN proveedores p ON c.proveedor_id = p.proveedor_id
+             LEFT JOIN users u ON c.usuario_id = u.id
+             LEFT JOIN depositos d ON c.deposito_id = d.deposito_id
+             WHERE c.compra_id = ? AND c.sucursal_id = ?",
+            [$id, $this->sucursalId()]
+        )->fetch();
+
+        if (!$compra) {
+            $this->error('Compra no encontrada.');
+            $this->redirect('/compras');
+            return null;
+        }
+
+        return $compra;
+    }
+}
