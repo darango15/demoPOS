@@ -23,6 +23,7 @@ desktop.ini
 .vscode/
 *.swp
 *.swo
+CLAUDE.md
 
 # Excel y archivos de datos
 *.xlsm
