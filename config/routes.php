@@ -187,6 +187,7 @@ $router->group([
 
     // ── Inventario ──
     $r->get('/inventario',                           [ProductoController::class, 'index']);
+    $r->get('/inventario/exportar-excel',            [ProductoController::class, 'exportarExcel']);
     $r->get('/inventario/nuevo',                     [ProductoController::class, 'crear']);
     $r->post('/inventario/nuevo',                    [ProductoController::class, 'guardar']);
     $r->get('/inventario/{producto_id}',             [ProductoController::class, 'detalle']);

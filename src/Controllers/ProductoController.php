@@ -416,4 +416,59 @@ class ProductoController extends Controller
             );
         }
     }
+
+    public function exportarExcel(): void
+    {
+        if (!Auth::can('productos.ver')) {
+            $this->error('Sin permiso.');
+            $this->redirect('/inventario');
+            return;
+        }
+
+        $productos = Database::query(
+            "SELECT p.sku, p.nombre,
+                    cp.nombre        AS categoria,
+                    m.nombre         AS marca,
+                    p.precio_a, p.precio_b, p.costo,
+                    COALESCE(SUM(i.cantidad), 0) AS stock,
+                    p.unidad_medida, p.estado
+             FROM productos p
+             LEFT JOIN categorias_productos cp ON p.categoria_id = cp.categoria_id
+             LEFT JOIN marcas m ON p.marca_id = m.marca_id
+             LEFT JOIN inventario i ON p.producto_id = i.producto_id
+             GROUP BY p.producto_id
+             ORDER BY cp.nombre, p.nombre",
+            []
+        )->fetchAll();
+
+        $filename = 'inventario_' . date('Y-m-d') . '.csv';
+
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+
+        $out = fopen('php://output', 'w');
+        // BOM para que Excel abra con tildes correctamente
+        fputs($out, "\xEF\xBB\xBF");
+
+        fputcsv($out, ['SKU', 'Nombre', 'Categoría', 'Marca', 'Precio A', 'Precio B', 'Costo', 'Stock', 'Unidad', 'Estado'], ';');
+
+        foreach ($productos as $p) {
+            fputcsv($out, [
+                $p['sku'],
+                $p['nombre'],
+                $p['categoria'] ?? '',
+                $p['marca']     ?? '',
+                number_format((float)$p['precio_a'], 2, '.', ''),
+                number_format((float)$p['precio_b'], 2, '.', ''),
+                number_format((float)$p['costo'],    2, '.', ''),
+                (int)$p['stock'],
+                $p['unidad_medida'] ?? '',
+                $p['estado'],
+            ], ';');
+        }
+
+        fclose($out);
+        exit;
+    }
 }

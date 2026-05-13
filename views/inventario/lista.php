@@ -70,6 +70,10 @@
         </form>
 
         <div class="flex items-center space-x-3">
+            <a href="/inventario/exportar-excel"
+               class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg flex items-center text-sm transition-colors">
+                <i class="fas fa-file-excel mr-1.5"></i> Excel
+            </a>
             <a href="/inventario/nuevo"
                 class="bg-sky-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg flex items-center text-sm transition-colors">
                 <i class="fas fa-plus-circle mr-1.5"></i> Nuevo
