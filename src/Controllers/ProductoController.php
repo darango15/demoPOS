@@ -5,6 +5,7 @@ namespace App\Controllers;
 
 use App\Application\Inventory\RegisterProductCommand;
 use App\Application\Inventory\UpdateProductCommand;
+use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Database;
 use App\Inventory\Domain\Model\ProductId;
@@ -426,17 +427,20 @@ class ProductoController extends Controller
         }
 
         $productos = Database::query(
-            "SELECT p.sku, p.nombre,
-                    cp.nombre        AS categoria,
-                    m.nombre         AS marca,
-                    p.precio_a, p.precio_b, p.costo,
-                    COALESCE(SUM(i.cantidad), 0) AS stock,
-                    p.unidad_medida, p.estado
+            "SELECT p.codigo, p.nombre,
+                    cp.nombre                              AS categoria,
+                    p.marca,
+                    COALESCE(pa.precio, 0)                AS precio_a,
+                    COALESCE(pb.precio, 0)                AS precio_b,
+                    p.costo,
+                    COALESCE(SUM(i.existencia), 0)        AS stock,
+                    p.estado
              FROM productos p
              LEFT JOIN categorias_productos cp ON p.categoria_id = cp.categoria_id
-             LEFT JOIN marcas m ON p.marca_id = m.marca_id
-             LEFT JOIN inventario i ON p.producto_id = i.producto_id
-             GROUP BY p.producto_id
+             LEFT JOIN precios_productos pa ON pa.producto_id = p.producto_id AND pa.tipo_precio = 'A'
+             LEFT JOIN precios_productos pb ON pb.producto_id = p.producto_id AND pb.tipo_precio = 'B'
+             LEFT JOIN inventario i ON i.producto_id = p.producto_id
+             GROUP BY p.producto_id, pa.precio, pb.precio
              ORDER BY cp.nombre, p.nombre",
             []
         )->fetchAll();
@@ -448,14 +452,13 @@ class ProductoController extends Controller
         header('Cache-Control: no-cache, no-store, must-revalidate');
 
         $out = fopen('php://output', 'w');
-        // BOM para que Excel abra con tildes correctamente
         fputs($out, "\xEF\xBB\xBF");
 
-        fputcsv($out, ['SKU', 'Nombre', 'Categoría', 'Marca', 'Precio A', 'Precio B', 'Costo', 'Stock', 'Unidad', 'Estado'], ';');
+        fputcsv($out, ['Código', 'Nombre', 'Categoría', 'Marca', 'Precio A', 'Precio B', 'Costo', 'Stock', 'Estado'], ';');
 
         foreach ($productos as $p) {
             fputcsv($out, [
-                $p['sku'],
+                $p['codigo'],
                 $p['nombre'],
                 $p['categoria'] ?? '',
                 $p['marca']     ?? '',
@@ -463,7 +466,6 @@ class ProductoController extends Controller
                 number_format((float)$p['precio_b'], 2, '.', ''),
                 number_format((float)$p['costo'],    2, '.', ''),
                 (int)$p['stock'],
-                $p['unidad_medida'] ?? '',
                 $p['estado'],
             ], ';');
         }
