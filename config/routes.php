@@ -79,13 +79,13 @@ $router->group(['prefix' => '/api/v1'], function ($r) {
     // Dashboard
     $r->get('/dashboard', [ApiDashboardController::class, 'index']);
 
-    // ── Sucursales ──
-    $r->get('/sucursales',          [ApiSucursalController::class, 'index']);
-    $r->get('/sucursales/{id}',     [ApiSucursalController::class, 'detalle']);
-    $r->post('/sucursales',         [ApiSucursalController::class, 'guardar']);
-    $r->put('/sucursales/{id}',     [ApiSucursalController::class, 'actualizar']);
-    $r->delete('/sucursales/{id}',  [ApiSucursalController::class, 'eliminar']);
-    $r->post('/sucursales/{id}/cambiar', [ApiSucursalController::class, 'cambiar']);
+    // ── Sucursales — INACTIVO (sistema de sucursal única) ──
+    // $r->get('/sucursales',          [ApiSucursalController::class, 'index']);
+    // $r->get('/sucursales/{id}',     [ApiSucursalController::class, 'detalle']);
+    // $r->post('/sucursales',         [ApiSucursalController::class, 'guardar']);
+    // $r->put('/sucursales/{id}',     [ApiSucursalController::class, 'actualizar']);
+    // $r->delete('/sucursales/{id}',  [ApiSucursalController::class, 'eliminar']);
+    // $r->post('/sucursales/{id}/cambiar', [ApiSucursalController::class, 'cambiar']);
 
     // ── Depósitos ──
     $r->get('/depositos',           [ApiDepositoController::class, 'index']);
@@ -343,14 +343,15 @@ $router->group([
     $r->get('/configuracion/roles',                 [ConfiguracionController::class, 'roles']);
     $r->get('/configuracion/impresoras',            [ConfiguracionController::class, 'impresoras']);
     
-    // ── Sucursales ──
-    $r->get('/configuracion/sucursales',                        [SucursalController::class, 'index']);
-    $r->get('/configuracion/sucursales/nueva',                  [SucursalController::class, 'crear']);
-    $r->post('/configuracion/sucursales/guardar',               [SucursalController::class, 'guardar']);
-    $r->get('/configuracion/sucursales/{sucursal_id}/editar',   [SucursalController::class, 'editar']);
-    $r->post('/configuracion/sucursales/{sucursal_id}/editar',  [SucursalController::class, 'actualizar']);
-    $r->post('/configuracion/sucursales/{sucursal_id}/eliminar',[SucursalController::class, 'eliminar']);
-    
-    $r->get('/configuracion/sucursal/{sucursal_id}',[ConfiguracionController::class, 'cambiarSucursal']);
-    $r->get('/configuracion/deposito/{deposito_id}',[ConfiguracionController::class, 'cambiarDeposito']);
+    // ── Sucursales — INACTIVO (sistema de sucursal única) ──
+    // $r->get('/configuracion/sucursales',                        [SucursalController::class, 'index']);
+    // $r->get('/configuracion/sucursales/nueva',                  [SucursalController::class, 'crear']);
+    // $r->post('/configuracion/sucursales/guardar',               [SucursalController::class, 'guardar']);
+    // $r->get('/configuracion/sucursales/{sucursal_id}/editar',   [SucursalController::class, 'editar']);
+    // $r->post('/configuracion/sucursales/{sucursal_id}/editar',  [SucursalController::class, 'actualizar']);
+    // $r->post('/configuracion/sucursales/{sucursal_id}/eliminar',[SucursalController::class, 'eliminar']);
+
+    // Cambio de sucursal/depósito activo — INACTIVO (sucursal única, no se necesita cambiar)
+    // $r->get('/configuracion/sucursal/{sucursal_id}',[ConfiguracionController::class, 'cambiarSucursal']);
+    // $r->get('/configuracion/deposito/{deposito_id}',[ConfiguracionController::class, 'cambiarDeposito']);
 });

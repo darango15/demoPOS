@@ -124,7 +124,7 @@ function navLink(string $href, string $icon, string $label, string $current): st
             <p class="nav-section">Administración</p>
             <div class="space-y-0.5">
                 <?= navLink('/configuracion', 'fas fa-cog', 'Configuración', $currentUri) ?>
-                <?= navLink('/configuracion/sucursales', 'fas fa-store-alt', 'Sucursales', $currentUri) ?>
+                <?php /* INACTIVO — sucursal única: navLink('/configuracion/sucursales', ...) */ ?>
                 <?php if (\App\Core\Auth::can('usuarios.ver')): ?>
                 <?= navLink('/usuarios', 'fas fa-users-cog', 'Usuarios y Roles', $currentUri) ?>
                 <?php endif; ?>
@@ -179,8 +179,9 @@ function navLink(string $href, string $icon, string $label, string $current): st
                             </a>
                         </div>
 
-                        <!-- Sucursal & Depósito -->
-                        <?php if (!empty($sucursal_actual)): ?>
+                        <?php /* INACTIVO — sucursal única: selector de sucursal/depósito oculto
+                        Para reactivar: descomentar el bloque entre estas etiquetas.
+
                         <div class="relative">
                             <button type="button" class="flex items-center space-x-2 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 rounded-lg transition border border-gray-100" onclick="let d=document.getElementById('depositosDropdown');if(d)d.classList.toggle('hidden');event.stopPropagation();">
                                 <i class="fas fa-store text-sky-500"></i>
@@ -192,49 +193,13 @@ function navLink(string $href, string $icon, string $label, string $current): st
                                     </span>
                                 </div>
                             </button>
-
-                            <?php if (!empty($depositos_disponibles)): ?>
                             <div id="depositosDropdown" class="hidden absolute top-full left-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden" onclick="event.stopPropagation();">
                                 <div class="py-2">
-                                    <?php if (!empty($sucursales_disponibles) && count($sucursales_disponibles) > 1): ?>
-                                    <div class="px-4 py-2 text-[0.6rem] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-50 mb-1 flex items-center">
-                                        <i class="fas fa-store-alt mr-2"></i> Cambiar Sucursal
-                                    </div>
-                                    <div class="max-h-48 overflow-y-auto mb-2">
-                                        <?php foreach ($sucursales_disponibles as $sucursal): ?>
-                                        <a href="/configuracion/sucursal/<?= $sucursal['sucursal_id'] ?>"
-                                           class="flex items-center px-4 py-2.5 text-sm <?= (!empty($sucursal_actual) && $sucursal_actual['sucursal_id'] == $sucursal['sucursal_id']) ? 'bg-blue-50 text-sky-600 font-semibold' : 'text-gray-700 hover:bg-gray-50' ?> transition-colors">
-                                            <i class="fas fa-map-marker-alt mr-3 text-xs text-gray-400"></i>
-                                            <span class="truncate"><?= View::e($sucursal['nombre']) ?></span>
-                                            <?php if (!empty($sucursal_actual) && $sucursal_actual['sucursal_id'] == $sucursal['sucursal_id']): ?>
-                                                <i class="fas fa-check-circle ml-auto text-sky-500 text-xs"></i>
-                                            <?php endif; ?>
-                                        </a>
-                                        <?php endforeach; ?>
-                                    </div>
-                                    <div class="border-t border-gray-50 my-1"></div>
-                                    <?php endif; ?>
-
-                                    <div class="px-4 py-2 text-[0.6rem] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-50 mb-1 flex items-center">
-                                        <i class="fas fa-warehouse mr-2"></i> Depósitos — <?= View::e($sucursal_actual['nombre'] ?? '') ?>
-                                    </div>
-                                    <div class="max-h-60 overflow-y-auto">
-                                        <?php foreach ($depositos_disponibles as $deposito): ?>
-                                        <a href="/configuracion/deposito/<?= $deposito['deposito_id'] ?>"
-                                           class="flex items-center px-4 py-2.5 text-sm <?= (!empty($deposito_actual) && $deposito_actual['deposito_id'] == $deposito['deposito_id']) ? 'bg-blue-50 text-sky-600 font-semibold' : 'text-gray-700 hover:bg-gray-50' ?> transition-colors">
-                                            <i class="fas <?= $deposito['es_principal'] ? 'fa-star text-amber-400' : 'fa-box text-gray-400' ?> mr-3 text-xs"></i>
-                                            <span class="truncate"><?= View::e($deposito['nombre']) ?></span>
-                                            <?php if (!empty($deposito_actual) && $deposito_actual['deposito_id'] == $deposito['deposito_id']): ?>
-                                                <i class="fas fa-check-circle ml-auto text-sky-500 text-xs"></i>
-                                            <?php endif; ?>
-                                        </a>
-                                        <?php endforeach; ?>
-                                    </div>
+                                    [contenido del dropdown: lista de sucursales y depósitos]
                                 </div>
                             </div>
-                            <?php endif; ?>
                         </div>
-                        <?php endif; ?>
+                        */ ?>
 
                         <!-- Notificaciones -->
                         <div class="relative">

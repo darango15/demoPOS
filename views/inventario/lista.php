@@ -54,22 +54,56 @@
 
 <!-- Filtros y búsqueda -->
 <div class="bg-white rounded-xl shadow-sm p-4 mb-6">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between">
-        <form method="get" class="relative w-full md:w-64 mb-3 md:mb-0" id="search-form">
-            <input type="text" name="buscar" value="<?= View::e($_GET['buscar'] ?? '') ?>" placeholder="Buscar producto..."
+    <?php $currentCat = $_GET['categoria'] ?? ''; ?>
+    <form method="get" id="search-form" class="flex flex-col md:flex-row md:items-center gap-3">
+
+        <!-- Búsqueda -->
+        <div class="relative flex-1 min-w-0">
+            <input type="text" name="buscar" value="<?= View::e($_GET['buscar'] ?? '') ?>"
+                placeholder="Buscar producto..."
                 class="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-transparent"
                 id="search-input" />
             <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm"></i>
             <div id="search-spinner" class="absolute right-3 top-2.5 hidden">
                 <i class="fas fa-spinner fa-spin text-sky-500"></i>
             </div>
-            <!-- Mantener categoria si existe -->
-            <?php if(isset($_GET['categoria'])): ?>
-                <input type="hidden" name="categoria" value="<?= View::e($_GET['categoria']) ?>">
-            <?php endif; ?>
-        </form>
+        </div>
 
-        <div class="flex items-center space-x-3">
+        <!-- Categoría -->
+        <div class="relative md:w-56">
+            <select name="categoria" id="categoria-select"
+                class="w-full pl-3 pr-8 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-transparent appearance-none bg-white"
+                onchange="this.form.submit()">
+                <option value="">Todas las categorías</option>
+                <?php foreach (($categorias ?? []) as $cat): ?>
+                <?php $catId = is_array($cat) ? ($cat['categoria_id'] ?? '') : ($cat->categoria_id ?? ''); ?>
+                <option value="<?= $catId ?>" <?= ($currentCat == $catId) ? 'selected' : '' ?>>
+                    <?= View::e(is_array($cat) ? $cat['nombre'] : $cat->nombre) ?>
+                </option>
+                <?php endforeach; ?>
+            </select>
+            <i class="fas fa-chevron-down absolute right-3 top-2.5 text-gray-400 text-xs pointer-events-none"></i>
+        </div>
+
+        <!-- Estado -->
+        <div class="relative md:w-40">
+            <select name="estado" id="estado-select"
+                class="w-full pl-3 pr-8 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-transparent appearance-none bg-white"
+                onchange="this.form.submit()">
+                <option value="">Todos los estados</option>
+                <option value="activo"   <?= (($_GET['estado'] ?? '') === 'activo')   ? 'selected' : '' ?>>Activo</option>
+                <option value="inactivo" <?= (($_GET['estado'] ?? '') === 'inactivo') ? 'selected' : '' ?>>Inactivo</option>
+            </select>
+            <i class="fas fa-chevron-down absolute right-3 top-2.5 text-gray-400 text-xs pointer-events-none"></i>
+        </div>
+
+        <!-- Botones -->
+        <div class="flex items-center gap-2 shrink-0">
+            <?php if (!empty($_GET['buscar']) || !empty($currentCat) || !empty($_GET['estado'])): ?>
+            <a href="/inventario" class="py-2 px-3 text-sm rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors" title="Limpiar filtros">
+                <i class="fas fa-times"></i>
+            </a>
+            <?php endif; ?>
             <a href="/inventario/exportar-excel"
                class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg flex items-center text-sm transition-colors">
                 <i class="fas fa-file-excel mr-1.5"></i> Excel
@@ -79,25 +113,7 @@
                 <i class="fas fa-plus-circle mr-1.5"></i> Nuevo
             </a>
         </div>
-    </div>
-
-    <!-- Filtros de categoría -->
-    <div class="flex overflow-x-auto space-x-2 mt-4 pb-1">
-        <?php 
-        $currentCat = $_GET['categoria'] ?? 'todos';
-        ?>
-        <a href="?categoria=todos<?= isset($_GET['buscar']) ? '&buscar='.View::e($_GET['buscar']) : '' ?>"
-            class="category-filter <?= ($currentCat === 'todos') ? 'active bg-sky-500 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200' ?> px-3 py-1.5 rounded-lg whitespace-nowrap text-sm transition-colors">
-            Todos
-        </a>
-        <?php foreach (($categorias ?? []) as $cat): ?>
-        <?php $catId = is_array($cat) ? ($cat['categoria_id'] ?? '') : ($cat->categoria_id ?? ''); ?>
-        <a href="?categoria=<?= $catId ?><?= isset($_GET['buscar']) ? '&buscar='.View::e($_GET['buscar']) : '' ?>"
-            class="category-filter <?= ($currentCat == $catId) ? 'active bg-sky-500 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200' ?> px-3 py-1.5 rounded-lg whitespace-nowrap text-sm transition-colors">
-            <?= View::e(is_array($cat) ? $cat['nombre'] : $cat->nombre) ?>
-        </a>
-        <?php endforeach; ?>
-    </div>
+    </form>
 </div>
 
 <!-- Lista de productos -->
@@ -260,20 +276,17 @@
 
 <?php View::section('extra_js'); ?>
 <script>
-    // Búsqueda con debounce para evitar muchas consultas
     let searchTimeout;
     const searchInput = document.getElementById('search-input');
     if (searchInput) {
         searchInput.addEventListener('input', function (e) {
             clearTimeout(searchTimeout);
             const spinner = document.getElementById('search-spinner');
-
-            if (e.target.value.length >= 3 || e.target.value.length === 0) {
+            if (e.target.value.length >= 2 || e.target.value.length === 0) {
                 spinner.classList.remove('hidden');
-
                 searchTimeout = setTimeout(() => {
                     document.getElementById('search-form').submit();
-                }, 500); // Esperar 500ms después de que el usuario deje de escribir
+                }, 500);
             }
         });
     }
