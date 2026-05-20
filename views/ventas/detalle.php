@@ -1,45 +1,80 @@
 <?php use App\Core\View; View::layout('app'); ?>
 <?php View::section('content'); ?>
 
-<div class="bg-white rounded-xl border border-gray-100 shadow-sm">
-    <div class="p-6 border-b">
-        <div class="flex items-center justify-between">
-            <div>
-                <h2 class="text-xl font-bold text-gray-800"><?= View::e($venta['numero_factura']) ?></h2>
-                <p class="text-sm text-gray-500"><?= date('d/m/Y H:i', strtotime($venta['fecha'])) ?></p>
+<?php
+$bc = match($venta['estado']) {
+    'pagada'  => 'bg-emerald-100 text-emerald-700',
+    'anulada' => 'bg-red-100 text-red-600',
+    default   => 'bg-yellow-100 text-yellow-700'
+};
+?>
+
+<!-- Breadcrumb -->
+<div class="flex items-center gap-2 text-sm text-gray-400 mb-3">
+    <a href="/ventas" class="hover:text-gray-600 transition-colors">Ventas</a>
+    <i class="fas fa-chevron-right text-xs"></i>
+    <span class="text-gray-700 font-medium"><?= View::e($venta['numero_factura']) ?></span>
+</div>
+
+<!-- Action bar -->
+<div class="flex items-center justify-between bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-2.5 mb-4">
+    <div class="flex gap-2">
+        <?php if ($venta['estado'] === 'pendiente'): ?>
+        <button onclick="abrirModalPagar(<?= $venta['venta_id'] ?>, '<?= addslashes($venta['numero_factura']) ?>', <?= $venta['total'] ?>)"
+                class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-semibold hover:bg-emerald-600 transition shadow-sm">
+            <i class="fas fa-check-circle"></i> Registrar Pago
+        </button>
+        <?php endif; ?>
+        <?php if ($venta['estado'] !== 'anulada'): ?>
+        <button onclick="abrirModalAnular(<?= $venta['venta_id'] ?>, '<?= addslashes($venta['numero_factura']) ?>')"
+                class="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition">
+            <i class="fas fa-ban"></i> Anular
+        </button>
+        <?php endif; ?>
+        <a href="/ventas" class="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+            Volver
+        </a>
+    </div>
+    <span class="px-3 py-1.5 rounded-full text-xs font-semibold <?= $bc ?>"><?= ucfirst($venta['estado']) ?></span>
+</div>
+
+<!-- Document card -->
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mb-4">
+    <h2 class="text-3xl font-bold text-gray-900 mb-6"><?= View::e($venta['numero_factura']) ?></h2>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-16">
+        <div>
+            <div class="flex items-baseline gap-4 py-2">
+                <label class="text-sm font-semibold text-gray-600 w-36 shrink-0">Cliente</label>
+                <span class="text-sm text-gray-800"><?= View::e($venta['cliente_nombre'] ?? 'Consumidor Final') ?></span>
             </div>
-            <div class="flex items-center gap-3">
-                <?php
-                $bc = match($venta['estado']) { 'pagada'=>'bg-green-100 text-green-700', 'anulada'=>'bg-red-100 text-red-700', default=>'bg-yellow-100 text-yellow-700' };
-                ?>
-                <span class="px-3 py-1 rounded-full text-sm font-medium <?= $bc ?>"><?= ucfirst($venta['estado']) ?></span>
-                <?php if ($venta['estado'] === 'pendiente'): ?>
-                <button onclick="abrirModalPagar(<?= $venta['venta_id'] ?>, '<?= addslashes($venta['numero_factura']) ?>', <?= $venta['total'] ?>)"
-                        class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">
-                    <i class="fas fa-check-circle mr-1"></i> Registrar Pago
-                </button>
-                <?php endif; ?>
-                <?php if ($venta['estado'] !== 'anulada'): ?>
-                <button onclick="abrirModalAnular(<?= $venta['venta_id'] ?>, '<?= addslashes($venta['numero_factura']) ?>')"
-                        class="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg text-sm font-medium hover:bg-red-100">
-                    <i class="fas fa-ban mr-1"></i> Anular
-                </button>
-                <?php endif; ?>
+            <div class="flex items-baseline gap-4 py-2">
+                <label class="text-sm font-semibold text-gray-600 w-36 shrink-0">RUC</label>
+                <span class="text-sm text-gray-600"><?= View::e($venta['cliente_ruc'] ?? '—') ?></span>
+            </div>
+            <div class="flex items-baseline gap-4 py-2">
+                <label class="text-sm font-semibold text-gray-600 w-36 shrink-0">Vendedor</label>
+                <span class="text-sm text-gray-600"><?= View::e($venta['vendedor_nombre'] ?? '—') ?></span>
             </div>
         </div>
-
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
-            <div><span class="text-gray-500">Cliente:</span><br><span class="font-medium"><?= View::e($venta['cliente_nombre'] ?? 'Consumidor Final') ?></span></div>
-            <div><span class="text-gray-500">RUC:</span><br><span class="font-medium"><?= View::e($venta['cliente_ruc'] ?? '—') ?></span></div>
-            <div><span class="text-gray-500">Vendedor:</span><br><span class="font-medium"><?= View::e($venta['vendedor_nombre'] ?? '—') ?></span></div>
-            <div><span class="text-gray-500">Forma de Pago:</span><br><span class="font-medium capitalize"><?= View::e($venta['forma_pago'] ?? '—') ?></span></div>
+        <div>
+            <div class="flex items-baseline gap-4 py-2">
+                <label class="text-sm font-semibold text-gray-600 w-36 shrink-0">Fecha</label>
+                <span class="text-sm text-gray-600"><?= date('d/m/Y H:i', strtotime($venta['fecha'])) ?></span>
+            </div>
+            <div class="flex items-baseline gap-4 py-2">
+                <label class="text-sm font-semibold text-gray-600 w-36 shrink-0">Forma de Pago</label>
+                <span class="text-sm text-gray-600 capitalize"><?= View::e($venta['forma_pago'] ?? '—') ?></span>
+            </div>
         </div>
     </div>
+</div>
 
-    <!-- Detalles -->
+<!-- Items table -->
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
     <table class="w-full text-sm">
-        <thead class="bg-gray-50">
-            <tr class="text-left text-xs text-gray-500 uppercase">
+        <thead class="bg-gray-50 border-b border-gray-100">
+            <tr class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 <th class="px-6 py-3">Producto</th>
                 <th class="px-6 py-3 text-right">Precio</th>
                 <th class="px-6 py-3 text-right">Cant.</th>
@@ -48,13 +83,15 @@
                 <th class="px-6 py-3 text-right">Total</th>
             </tr>
         </thead>
-        <tbody class="divide-y">
+        <tbody class="divide-y divide-gray-50">
             <?php foreach (($detalles ?? []) as $d): ?>
-            <tr class="hover:bg-gray-50/50">
+            <tr class="hover:bg-gray-50/50 transition-colors">
                 <td class="px-6 py-3">
-                    <span class="text-gray-400 text-xs mr-2"><?= View::e($d['producto_codigo']) ?></span>
+                    <span class="text-gray-400 text-xs mr-2 font-mono"><?= View::e($d['producto_codigo']) ?></span>
                     <span class="font-medium text-gray-800"><?= View::e($d['producto_nombre']) ?></span>
-                    <?php if (!empty($d['deposito_nombre'])): ?><span class="text-xs text-gray-400 ml-1">(<?= View::e($d['deposito_nombre']) ?>)</span><?php endif; ?>
+                    <?php if (!empty($d['deposito_nombre'])): ?>
+                    <span class="text-xs text-gray-400 ml-1">(<?= View::e($d['deposito_nombre']) ?>)</span>
+                    <?php endif; ?>
                 </td>
                 <td class="px-6 py-3 text-right text-gray-600">$<?= number_format((float)$d['precio'], 2) ?></td>
                 <td class="px-6 py-3 text-right font-medium"><?= $d['cantidad'] ?></td>
@@ -64,17 +101,13 @@
             </tr>
             <?php endforeach; ?>
         </tbody>
-        <tfoot class="bg-gray-50 border-t-2">
-            <tr><td colspan="5" class="px-6 py-2 text-right text-sm text-gray-500">Subtotal</td><td class="px-6 py-2 text-right font-medium">$<?= number_format((float)$venta['subtotal'], 2) ?></td></tr>
-            <tr><td colspan="5" class="px-6 py-2 text-right text-sm text-gray-500">Descuento</td><td class="px-6 py-2 text-right font-medium text-red-600">-$<?= number_format((float)$venta['descuento'], 2) ?></td></tr>
-            <tr><td colspan="5" class="px-6 py-2 text-right text-sm text-gray-500">ITBMS (7%)</td><td class="px-6 py-2 text-right font-medium">$<?= number_format((float)$venta['itbms'], 2) ?></td></tr>
-            <tr class="text-lg"><td colspan="5" class="px-6 py-3 text-right font-semibold text-gray-800">Total</td><td class="px-6 py-3 text-right font-bold text-gray-900">$<?= number_format((float)$venta['total'], 2) ?></td></tr>
+        <tfoot class="bg-gray-50 border-t-2 border-gray-100">
+            <tr><td colspan="5" class="px-6 py-2 text-right text-xs text-gray-500">Subtotal</td><td class="px-6 py-2 text-right font-medium text-sm">$<?= number_format((float)$venta['subtotal'], 2) ?></td></tr>
+            <tr><td colspan="5" class="px-6 py-2 text-right text-xs text-gray-500">Descuento</td><td class="px-6 py-2 text-right font-medium text-sm text-red-600">-$<?= number_format((float)$venta['descuento'], 2) ?></td></tr>
+            <tr><td colspan="5" class="px-6 py-2 text-right text-xs text-gray-500">ITBMS (7%)</td><td class="px-6 py-2 text-right font-medium text-sm">$<?= number_format((float)$venta['itbms'], 2) ?></td></tr>
+            <tr><td colspan="5" class="px-6 py-3 text-right font-bold text-gray-800">Total</td><td class="px-6 py-3 text-right font-bold text-xl text-gray-900">$<?= number_format((float)$venta['total'], 2) ?></td></tr>
         </tfoot>
     </table>
-</div>
-
-<div class="mt-4 text-center">
-    <a href="/ventas" class="text-sm text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-left mr-1"></i> Volver a ventas</a>
 </div>
 
 <!-- Modal Registrar Pago -->
@@ -94,7 +127,7 @@
             </div>
             <div class="flex gap-3 justify-end">
                 <button type="button" onclick="document.getElementById('modal-pagar').classList.add('hidden')" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
-                <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700"><i class="fas fa-check-circle mr-1"></i>Confirmar Pago</button>
+                <button type="submit" class="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-semibold hover:bg-emerald-600"><i class="fas fa-check-circle mr-1"></i>Confirmar Pago</button>
             </div>
         </form>
     </div>

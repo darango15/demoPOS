@@ -213,6 +213,118 @@ class UsuarioController extends Controller
         $this->redirect('/usuarios');
     }
 
+    public function editar(int $user_id): void
+    {
+        if (!$this->requirePermission('usuarios.gestionar')) return;
+
+        $usuario = Database::query(
+            "SELECT id, username, first_name, last_name, email, rol, is_staff, is_active FROM users WHERE id = ?",
+            [$user_id]
+        )->fetch();
+
+        if (!$usuario) {
+            $this->error('Usuario no encontrado.');
+            $this->redirect('/usuarios');
+            return;
+        }
+
+        $this->view('usuarios.form', [
+            'page_title'    => 'Editar Usuario',
+            'page_subtitle' => 'Modificar datos de acceso',
+            'usuario'       => (object) $usuario,
+            'action'        => "/usuarios/{$user_id}/editar",
+            'roles'         => ['cajero', 'supervisor', 'gerente', 'auditor', 'superadmin'],
+        ]);
+    }
+
+    public function actualizar(int $user_id): void
+    {
+        if (!$this->verifyCsrf()) return;
+        if (!$this->requirePermission('usuarios.gestionar')) return;
+
+        $usuario = Database::query(
+            "SELECT id, username, rol FROM users WHERE id = ?",
+            [$user_id]
+        )->fetch();
+
+        if (!$usuario) {
+            $this->error('Usuario no encontrado.');
+            $this->redirect('/usuarios');
+            return;
+        }
+
+        if ($usuario['rol'] === 'superadmin' && Auth::rol() !== 'superadmin') {
+            $this->error('No puedes editar un superadmin.');
+            $this->redirect('/usuarios');
+            return;
+        }
+
+        $firstName = trim($this->request->post('first_name', ''));
+        $lastName  = trim($this->request->post('last_name', ''));
+        $email     = trim($this->request->post('email', ''));
+        $email     = $email !== '' ? $email : null;
+        $isStaff   = $this->request->post('is_staff') ? 1 : 0;
+        $isActive  = $this->request->post('is_active') ? 1 : 0;
+        $password  = $this->request->post('password', '');
+
+        $rol = $this->request->post('rol', $usuario['rol']);
+        $rolesValidos = ['cajero', 'supervisor', 'gerente', 'auditor', 'superadmin'];
+        if (!in_array($rol, $rolesValidos, true)) $rol = $usuario['rol'];
+        if ($rol === 'superadmin' && Auth::rol() !== 'superadmin') $rol = $usuario['rol'];
+
+        if ($user_id === Auth::id() && !$isActive) {
+            $this->error('No puedes desactivar tu propia cuenta.');
+            $this->redirect("/usuarios/{$user_id}/editar");
+            return;
+        }
+
+        Database::query(
+            "UPDATE users SET first_name=?, last_name=?, email=?, is_staff=?, is_active=?, rol=?, is_superuser=? WHERE id=?",
+            [$firstName, $lastName, $email, $isStaff, $isActive, $rol, $rol === 'superadmin' ? 1 : 0, $user_id]
+        );
+
+        if ($password !== '') {
+            Database::query(
+                "UPDATE users SET password = ? WHERE id = ?",
+                [password_hash($password, PASSWORD_BCRYPT), $user_id]
+            );
+        }
+
+        AuditService::log('usuarios.editar', "Usuario '{$usuario['username']}' actualizado", $user_id, 'usuario', [], $this->empresaId());
+        $this->success('Usuario actualizado correctamente.');
+        $this->redirect('/usuarios');
+    }
+
+    public function eliminar(int $user_id): void
+    {
+        if (!$this->verifyCsrf()) return;
+        if (!$this->requirePermission('usuarios.gestionar')) return;
+
+        if ($user_id === Auth::id()) {
+            $this->error('No puedes eliminar tu propia cuenta.');
+            $this->redirect('/usuarios');
+            return;
+        }
+
+        $usuario = Database::query("SELECT username, rol FROM users WHERE id = ?", [$user_id])->fetch();
+        if (!$usuario) {
+            $this->error('Usuario no encontrado.');
+            $this->redirect('/usuarios');
+            return;
+        }
+
+        if ($usuario['rol'] === 'superadmin' && Auth::rol() !== 'superadmin') {
+            $this->error('No puedes eliminar un superadmin.');
+            $this->redirect('/usuarios');
+            return;
+        }
+
+        Database::query("DELETE FROM users WHERE id = ?", [$user_id]);
+        AuditService::log('usuarios.eliminar', "Usuario '{$usuario['username']}' eliminado", null, 'usuario', [], $this->empresaId());
+        $this->success("Usuario '{$usuario['username']}' eliminado.");
+        $this->redirect('/usuarios');
+    }
+
     public function permisos(int $user_id): void
     {
         if (!$this->requirePermission('usuarios.gestionar')) return;

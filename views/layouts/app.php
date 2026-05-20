@@ -1,29 +1,39 @@
 <?php
 use App\Core\View;
 use App\Core\Auth;
+use App\Core\ModuleManager;
 
 $currentUri = $_SERVER['REQUEST_URI'] ?? '/';
 
-// Determinar sección activa
-$sec = 'dashboard';
-if (str_contains($currentUri, '/inventario') || str_contains($currentUri, '/categorias') || str_contains($currentUri, '/proveedores') || str_contains($currentUri, '/depositos') || str_contains($currentUri, '/compras') || str_contains($currentUri, '/traslados')) {
-    $sec = 'inventario';
-} elseif (str_contains($currentUri, '/ventas') || str_contains($currentUri, '/cotizaciones')) {
-    $sec = 'ventas';
-} elseif (str_contains($currentUri, '/clientes')) {
-    $sec = 'clientes';
-} elseif (str_contains($currentUri, '/reportes')) {
-    $sec = 'reportes';
-} elseif (str_contains($currentUri, '/configuracion') || str_contains($currentUri, '/usuarios')) {
-    $sec = 'configuracion';
-}
-
 function navLink(string $href, string $icon, string $label, string $current): string {
-    $active = $current === $href || str_starts_with($current, $href . '/') || str_starts_with($current, $href . '?');
+    $active = ($current === $href)
+           || str_starts_with($current, $href . '/')
+           || str_starts_with($current, $href . '?');
+    // Evitar que '/' marque todo como activo
+    if ($href === '/' && $current !== '/') {
+        $active = false;
+    }
     $cls = $active
         ? 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-semibold text-sky-600 bg-sky-50 border border-sky-100'
         : 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors';
-    return "<a href=\"{$href}\" class=\"{$cls}\"><i class=\"{$icon} w-4 text-center\"></i> {$label}</a>";
+    return "<a href=\"{$href}\" class=\"{$cls}\"><i class=\"{$icon} w-4 text-center\"></i> " . htmlspecialchars($label) . "</a>";
+}
+
+function renderMenuItem(array $item, string $currentUri): string
+{
+    if (($item['type'] ?? '') === 'section') {
+        return '<p class="nav-section">' . htmlspecialchars($item['label'] ?? '') . '</p>';
+    }
+
+    // Verificar permiso
+    if (!empty($item['permission']) && !\App\Core\Auth::can($item['permission'])) {
+        return '';
+    }
+    if (!empty($item['superuser']) && !\App\Core\Auth::isSuperuser()) {
+        return '';
+    }
+
+    return navLink($item['href'] ?? '#', $item['icon'] ?? 'fas fa-circle', $item['label'] ?? '', $currentUri);
 }
 ?>
 <!DOCTYPE html>
@@ -75,64 +85,13 @@ function navLink(string $href, string $icon, string $label, string $current): st
             </div>
         </div>
 
-        <!-- Navegación -->
+        <!-- Navegación dinámica (construida desde módulos instalados) -->
         <nav class="flex-1 px-2 pb-4">
-
-            <!-- Dashboard -->
-            <p class="nav-section">Principal</p>
-            <?= navLink('/', 'fas fa-home', 'Dashboard', $currentUri) ?>
-
-            <!-- Ventas -->
-            <p class="nav-section">Ventas</p>
             <div class="space-y-0.5">
-                <?= navLink('/ventas/pos', 'fas fa-cash-register', 'Punto de Venta', $currentUri) ?>
-                <?= navLink('/ventas', 'fas fa-shopping-cart', 'Historial de Ventas', $currentUri) ?>
-                <?= navLink('/ventas/cotizaciones', 'fas fa-file-invoice', 'Cotizaciones', $currentUri) ?>
+                <?php foreach (ModuleManager::getMenu() as $item): ?>
+                    <?= renderMenuItem($item, $currentUri) ?>
+                <?php endforeach; ?>
             </div>
-
-            <!-- Inventario -->
-            <p class="nav-section">Inventario</p>
-            <div class="space-y-0.5">
-                <?= navLink('/inventario', 'fas fa-box', 'Productos', $currentUri) ?>
-                <?= navLink('/inventario/categorias', 'fas fa-tags', 'Categorías', $currentUri) ?>
-                <?= navLink('/inventario/marcas', 'fas fa-certificate', 'Marcas', $currentUri) ?>
-                <?= navLink('/inventario/proveedores', 'fas fa-truck', 'Proveedores', $currentUri) ?>
-                <?= navLink('/inventario/depositos', 'fas fa-warehouse', 'Depósitos', $currentUri) ?>
-                <?= navLink('/compras', 'fas fa-file-invoice-dollar', 'Compras', $currentUri) ?>
-                <?= navLink('/inventario/traslados', 'fas fa-exchange-alt', 'Traslados', $currentUri) ?>
-                <?= navLink('/inventario/kardex', 'fas fa-stream', 'Kardex', $currentUri) ?>
-                <?= navLink('/inventario/lotes', 'fas fa-boxes', 'Lotes', $currentUri) ?>
-                <?= navLink('/inventario/alertas', 'fas fa-bell', 'Alertas', $currentUri) ?>
-                <?= navLink('/inventario/conteos', 'fas fa-clipboard-check', 'Conteo Físico', $currentUri) ?>
-                <?= navLink('/compras/sugerencias', 'fas fa-robot', 'OC Automáticas', $currentUri) ?>
-            </div>
-
-            <!-- Clientes -->
-            <p class="nav-section">Clientes</p>
-            <div class="space-y-0.5">
-                <?= navLink('/clientes', 'fas fa-users', 'Clientes', $currentUri) ?>
-                <?= navLink('/clientes/cuentas-por-cobrar', 'fas fa-hand-holding-usd', 'Cuentas por Cobrar', $currentUri) ?>
-            </div>
-
-            <!-- Reportes -->
-            <p class="nav-section">Reportes</p>
-            <div class="space-y-0.5">
-                <?= navLink('/reportes', 'fas fa-chart-bar', 'Reportes de Ventas', $currentUri) ?>
-            </div>
-
-            <!-- Administración -->
-            <p class="nav-section">Administración</p>
-            <div class="space-y-0.5">
-                <?= navLink('/configuracion', 'fas fa-cog', 'Configuración', $currentUri) ?>
-                <?php /* INACTIVO — sucursal única: navLink('/configuracion/sucursales', ...) */ ?>
-                <?php if (\App\Core\Auth::can('usuarios.ver')): ?>
-                <?= navLink('/usuarios', 'fas fa-users-cog', 'Usuarios y Roles', $currentUri) ?>
-                <?php endif; ?>
-                <?php if (\App\Core\Auth::can('bitacora.ver')): ?>
-                <?= navLink('/bitacora', 'fas fa-history', 'Bitácora', $currentUri) ?>
-                <?php endif; ?>
-            </div>
-
         </nav>
 
         <!-- User info at bottom -->

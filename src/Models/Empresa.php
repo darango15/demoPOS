@@ -12,6 +12,7 @@ class Empresa extends Model
     protected array $fillable = [
         'codigo', 'razon_social', 'nombre_comercial', 'ruc', 'dv',
         'direccion', 'telefono', 'email', 'sitio_web', 'activa', 'logo',
-        'plan_id', 'ai_enabled', 'status_suscripcion', 'fecha_vencimiento'
+        'plan_id', 'ai_enabled', 'status_suscripcion', 'fecha_vencimiento',
+        'pos_desc_cajero', 'pos_desc_gerente',
     ];
 }

@@ -121,6 +121,7 @@ class CotizacionController extends Controller
         $this->view('ventas.crear', [
             'page_title' => 'Nueva Cotización',
             'page_subtitle' => 'Crear cotización',
+            'tipo_documento' => 'cotizacion',
             'clientes' => $clientes,
             'depositos' => $depositos,
             'siguiente_factura' => \App\Models\Venta::generarNumeroFactura(),

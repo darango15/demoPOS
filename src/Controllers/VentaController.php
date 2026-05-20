@@ -171,6 +171,7 @@ class VentaController extends Controller
         $this->view('ventas.crear', [
             'page_title' => 'Nueva Venta',
             'page_subtitle' => 'Crear factura',
+            'tipo_documento' => 'venta',
             'clientes' => $clientes,
             'depositos' => $depositos,
             'siguiente_factura' => Venta::generarNumeroFactura(),
@@ -189,11 +190,25 @@ class VentaController extends Controller
         $clientes = Cliente::where('estado', 'activo');
         $depositos = Deposito::where('estado', 'activo');
 
+        // Descuento máximo en POS según rol del usuario
+        $empresa = Database::query(
+            "SELECT pos_desc_cajero, pos_desc_gerente FROM companies WHERE empresa_id = ? LIMIT 1",
+            [$this->empresaId()]
+        )->fetch();
+
+        $rol = \App\Core\Auth::rol();
+        $maxDescuento = match(true) {
+            in_array($rol, ['superadmin', 'gerente', 'administrador'], true) => (int)($empresa['pos_desc_gerente'] ?? 50),
+            default => (int)($empresa['pos_desc_cajero'] ?? 10),
+        };
+
         $this->view('ventas.pos', [
             'page_title' => 'Punto de Venta',
             'page_subtitle' => 'POS',
             'depositos' => $depositos,
             'clientes' => $clientes,
+            'max_descuento_pct' => $maxDescuento,
+            'rol_usuario' => $rol,
         ]);
     }
 

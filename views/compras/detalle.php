@@ -1,95 +1,151 @@
 <?php use App\Core\View; View::layout('app'); ?>
 <?php View::section('content'); ?>
-<div class="max-w-4xl mx-auto space-y-4">
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h3 class="text-lg font-semibold">Compra #<?= View::e($compra['numero_factura'] ?? '') ?></h3>
-                <p class="text-sm text-gray-500">Fecha: <?= $compra['fecha_compra'] ?? '' ?></p>
-            </div>
-            <?php $est = $compra['estado'] ?? ''; ?>
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-                <?= match($est) {
-                    'recibida'             => 'bg-green-100 text-green-800',
-                    'parcialmente_recibida'=> 'bg-blue-100 text-blue-800',
-                    'pendiente'            => 'bg-yellow-100 text-yellow-800',
-                    'cancelada'            => 'bg-red-100 text-red-800',
-                    default                => 'bg-gray-100 text-gray-800'
-                } ?>">
-                <?= $est === 'parcialmente_recibida' ? 'Parcialmente Recibida' : ucfirst($est) ?>
-            </span>
-        </div>
 
-        <div class="grid grid-cols-2 gap-4 text-sm">
-            <div><span class="text-gray-500">Proveedor:</span> <span class="font-medium"><?= View::e($compra['proveedor_nombre'] ?? 'N/A') ?></span></div>
-            <div><span class="text-gray-500">Depósito:</span> <span class="font-medium"><?= View::e($compra['deposito_nombre'] ?? 'N/A') ?></span></div>
-            <div><span class="text-gray-500">Factura Proveedor:</span> <span class="font-medium"><?= View::e($compra['numero_factura_proveedor'] ?? '-') ?></span></div>
-            <div><span class="text-gray-500">Registrado por:</span> <span class="font-medium"><?= View::e($compra['usuario_nombre'] ?? 'N/A') ?></span></div>
-            <?php if (!empty($compra['notas'])): ?>
-            <div class="col-span-2"><span class="text-gray-500">Notas:</span> <span class="font-medium"><?= View::e($compra['notas']) ?></span></div>
+<?php
+$est = $compra['estado'] ?? '';
+$hayParcial = in_array($est, ['pendiente', 'parcialmente_recibida']);
+
+$pipelineStates = [
+    ['label' => 'Pendiente',        'key' => 'pendiente'],
+    ['label' => 'Parcial',          'key' => 'parcialmente_recibida'],
+    ['label' => 'Recibida',         'key' => 'recibida'],
+];
+$cancelada = $est === 'cancelada';
+?>
+
+<!-- Breadcrumb -->
+<div class="flex items-center gap-2 text-sm text-gray-400 mb-3">
+    <a href="/compras" class="hover:text-gray-600 transition-colors">Compras</a>
+    <i class="fas fa-chevron-right text-xs"></i>
+    <span class="text-gray-700 font-medium"><?= View::e($compra['numero_factura'] ?? '') ?></span>
+</div>
+
+<!-- Action bar -->
+<div class="flex items-center justify-between bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-2.5 mb-4">
+    <div class="flex gap-2">
+        <?php if ($hayParcial): ?>
+        <a href="/compras/<?= $compra['compra_id'] ?>/recibir"
+           class="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-semibold hover:bg-sky-600 transition shadow-sm">
+            <i class="fas fa-truck-loading"></i> Registrar Recepción
+        </a>
+        <?php endif; ?>
+        <a href="/compras" class="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+            Volver
+        </a>
+    </div>
+
+    <?php if ($cancelada): ?>
+    <span class="px-3 py-1.5 rounded-full text-xs font-semibold bg-red-100 text-red-600">Cancelada</span>
+    <?php else: ?>
+    <!-- Pipeline -->
+    <div class="flex items-stretch text-xs font-semibold select-none">
+        <?php foreach ($pipelineStates as $i => $stage):
+            $isActive = $est === $stage['key'];
+            $isPast = ($est === 'recibida' && $stage['key'] !== 'recibida') || ($est === 'parcialmente_recibida' && $stage['key'] === 'pendiente');
+            $bgActive = $isActive || $isPast ? 'bg-sky-500 text-white' : 'bg-gray-100 text-gray-400';
+            $bgArrow  = $isActive || $isPast ? 'bg-sky-500' : 'bg-gray-100';
+            $isFirst = $i === 0;
+            $isLast  = $i === count($pipelineStates) - 1;
+        ?>
+        <div class="flex items-center <?= $bgActive ?> <?= $isFirst ? 'pl-4 rounded-l-lg' : 'pl-7' ?> <?= $isLast ? 'pr-5 rounded-r-lg' : 'pr-6' ?> py-2 relative">
+            <?= $stage['label'] ?>
+            <?php if (!$isLast): ?>
+            <span class="absolute right-0 top-0 h-full w-3 overflow-hidden translate-x-2.5 z-10">
+                <span class="block w-6 h-6 <?= $bgArrow ?> rotate-45 origin-top-left mt-0.5 ml-0.5"></span>
+            </span>
             <?php endif; ?>
         </div>
+        <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+</div>
 
-        <?php $hayParcial = in_array($est, ['pendiente', 'parcialmente_recibida']); ?>
+<!-- Document card -->
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mb-4">
+    <h2 class="text-3xl font-bold text-gray-900 mb-6">Compra #<?= View::e($compra['numero_factura'] ?? '') ?></h2>
 
-        <?php if (!empty($detalles)): ?>
-        <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-4 py-2 text-left">Código</th>
-                    <th class="px-4 py-2 text-left">Producto</th>
-                    <th class="px-4 py-2 text-right">Pedido</th>
-                    <th class="px-4 py-2 text-right">Recibido</th>
-                    <?php if ($hayParcial): ?>
-                    <th class="px-4 py-2 text-right text-amber-700">Pendiente</th>
-                    <?php endif; ?>
-                    <th class="px-4 py-2 text-right">Costo Unit.</th>
-                    <th class="px-4 py-2 text-right">Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($detalles as $d):
-                    $pendiente = (float)($d['cantidad_pendiente'] ?? 0);
-                ?>
-                <tr class="border-t hover:bg-gray-50 <?= $pendiente > 0 ? 'bg-amber-50/40' : '' ?>">
-                    <td class="px-4 py-2 font-mono text-gray-500"><?= View::e($d['producto_codigo'] ?? '-') ?></td>
-                    <td class="px-4 py-2"><?= View::e($d['producto_nombre'] ?? '-') ?></td>
-                    <td class="px-4 py-2 text-right"><?= number_format((float)($d['cantidad'] ?? 0), 2) ?></td>
-                    <td class="px-4 py-2 text-right font-medium <?= (float)$d['cantidad_recibida'] > 0 ? 'text-green-700' : 'text-gray-400' ?>">
-                        <?= number_format((float)($d['cantidad_recibida'] ?? 0), 2) ?>
-                    </td>
-                    <?php if ($hayParcial): ?>
-                    <td class="px-4 py-2 text-right font-medium <?= $pendiente > 0 ? 'text-amber-700' : 'text-gray-400' ?>">
-                        <?= $pendiente > 0 ? number_format($pendiente, 2) : '—' ?>
-                    </td>
-                    <?php endif; ?>
-                    <td class="px-4 py-2 text-right">$<?= number_format((float)($d['costo'] ?? 0), 2) ?></td>
-                    <td class="px-4 py-2 text-right font-medium">$<?= number_format((float)($d['total_linea'] ?? 0), 2) ?></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-16">
+        <div>
+            <div class="flex items-baseline gap-4 py-2">
+                <label class="text-sm font-semibold text-gray-600 w-44 shrink-0">Proveedor</label>
+                <span class="text-sm text-gray-800"><?= View::e($compra['proveedor_nombre'] ?? 'N/A') ?></span>
+            </div>
+            <div class="flex items-baseline gap-4 py-2">
+                <label class="text-sm font-semibold text-gray-600 w-44 shrink-0">Depósito</label>
+                <span class="text-sm text-gray-600"><?= View::e($compra['deposito_nombre'] ?? 'N/A') ?></span>
+            </div>
+            <div class="flex items-baseline gap-4 py-2">
+                <label class="text-sm font-semibold text-gray-600 w-44 shrink-0">Factura Proveedor</label>
+                <span class="text-sm text-gray-600 font-mono"><?= View::e($compra['numero_factura_proveedor'] ?? '—') ?></span>
+            </div>
         </div>
-        <?php endif; ?>
-
-        <div class="border-t pt-4 text-right space-y-1">
-            <p class="text-sm">Subtotal: <span class="font-medium">$<?= number_format((float)($compra['monto_subtotal'] ?? 0), 2) ?></span></p>
-            <p class="text-sm">ITBMS: <span class="font-medium">$<?= number_format((float)($compra['monto_itbms'] ?? 0), 2) ?></span></p>
-            <p class="text-lg font-bold text-blue-600">Total: $<?= number_format((float)($compra['monto_total'] ?? 0), 2) ?></p>
-        </div>
-
-        <div class="border-t pt-4 flex items-center gap-3">
-            <a href="/compras" class="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">
-                <i class="fas fa-arrow-left mr-1"></i>Volver
-            </a>
-            <?php if ($hayParcial): ?>
-            <a href="/compras/<?= $compra['compra_id'] ?>/recibir"
-               class="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2">
-                <i class="fas fa-truck-loading"></i> Registrar Recepción
-            </a>
+        <div>
+            <div class="flex items-baseline gap-4 py-2">
+                <label class="text-sm font-semibold text-gray-600 w-44 shrink-0">Fecha</label>
+                <span class="text-sm text-gray-600"><?= $compra['fecha_compra'] ?? '' ?></span>
+            </div>
+            <div class="flex items-baseline gap-4 py-2">
+                <label class="text-sm font-semibold text-gray-600 w-44 shrink-0">Registrado por</label>
+                <span class="text-sm text-gray-600"><?= View::e($compra['usuario_nombre'] ?? 'N/A') ?></span>
+            </div>
+            <?php if (!empty($compra['notas'])): ?>
+            <div class="flex items-baseline gap-4 py-2">
+                <label class="text-sm font-semibold text-gray-600 w-44 shrink-0">Notas</label>
+                <span class="text-sm text-gray-600"><?= View::e($compra['notas']) ?></span>
+            </div>
             <?php endif; ?>
         </div>
     </div>
 </div>
+
+<!-- Items table -->
+<?php if (!empty($detalles)): ?>
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 border-b border-gray-100">
+                <tr class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th class="px-4 py-3">Código</th>
+                    <th class="px-4 py-3">Producto</th>
+                    <th class="px-4 py-3 text-right">Pedido</th>
+                    <th class="px-4 py-3 text-right">Recibido</th>
+                    <?php if ($hayParcial): ?>
+                    <th class="px-4 py-3 text-right text-amber-600">Pendiente</th>
+                    <?php endif; ?>
+                    <th class="px-4 py-3 text-right">Costo Unit.</th>
+                    <th class="px-4 py-3 text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                <?php foreach ($detalles as $d):
+                    $pendiente = (float)($d['cantidad_pendiente'] ?? 0);
+                ?>
+                <tr class="hover:bg-gray-50/50 transition-colors <?= $pendiente > 0 ? 'bg-amber-50/40' : '' ?>">
+                    <td class="px-4 py-3 font-mono text-xs text-gray-400"><?= View::e($d['producto_codigo'] ?? '—') ?></td>
+                    <td class="px-4 py-3 font-medium text-gray-800"><?= View::e($d['producto_nombre'] ?? '—') ?></td>
+                    <td class="px-4 py-3 text-right"><?= number_format((float)($d['cantidad'] ?? 0), 2) ?></td>
+                    <td class="px-4 py-3 text-right font-medium <?= (float)$d['cantidad_recibida'] > 0 ? 'text-emerald-700' : 'text-gray-400' ?>">
+                        <?= number_format((float)($d['cantidad_recibida'] ?? 0), 2) ?>
+                    </td>
+                    <?php if ($hayParcial): ?>
+                    <td class="px-4 py-3 text-right font-medium <?= $pendiente > 0 ? 'text-amber-700' : 'text-gray-400' ?>">
+                        <?= $pendiente > 0 ? number_format($pendiente, 2) : '—' ?>
+                    </td>
+                    <?php endif; ?>
+                    <td class="px-4 py-3 text-right text-gray-600">$<?= number_format((float)($d['costo'] ?? 0), 2) ?></td>
+                    <td class="px-4 py-3 text-right font-semibold text-gray-800">$<?= number_format((float)($d['total_linea'] ?? 0), 2) ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+            <tfoot class="bg-gray-50 border-t-2 border-gray-100">
+                <?php $cols = $hayParcial ? 6 : 5; ?>
+                <tr><td colspan="<?= $cols ?>" class="px-4 py-2 text-right text-xs text-gray-500">Subtotal</td><td class="px-4 py-2 text-right font-medium text-sm">$<?= number_format((float)($compra['monto_subtotal'] ?? 0), 2) ?></td></tr>
+                <tr><td colspan="<?= $cols ?>" class="px-4 py-2 text-right text-xs text-gray-500">ITBMS</td><td class="px-4 py-2 text-right font-medium text-sm">$<?= number_format((float)($compra['monto_itbms'] ?? 0), 2) ?></td></tr>
+                <tr><td colspan="<?= $cols ?>" class="px-4 py-3 text-right font-bold text-gray-800">Total</td><td class="px-4 py-3 text-right font-bold text-xl text-gray-900">$<?= number_format((float)($compra['monto_total'] ?? 0), 2) ?></td></tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+<?php endif; ?>
+
 <?php View::endSection('content'); ?>

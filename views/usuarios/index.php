@@ -108,17 +108,30 @@
                         </div>
                     </td>
                     <td class="px-5 py-3 text-center">
-                        <?php if ($u['id'] != Auth::id()): ?>
-                        <form method="POST" action="/usuarios/toggle-activo">
-                            <?= View::csrf() ?>
-                            <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-                            <button type="submit"
-                                    class="text-xs px-3 py-1 rounded-lg font-medium <?= $u['is_active'] ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200' ?>"
-                                    onclick="return confirm('¿Confirmar cambio de estado?')">
-                                <?= $u['is_active'] ? 'Desactivar' : 'Activar' ?>
-                            </button>
-                        </form>
-                        <?php endif; ?>
+                        <div class="flex items-center justify-center gap-1.5">
+                            <a href="/usuarios/<?= $u['id'] ?>/editar"
+                               class="text-xs px-3 py-1 rounded-lg font-medium bg-sky-100 text-sky-700 hover:bg-sky-200">
+                                <i class="fas fa-pen mr-1"></i>Editar
+                            </a>
+                            <?php if ($u['id'] != Auth::id()): ?>
+                            <form method="POST" action="/usuarios/toggle-activo" class="inline">
+                                <?= View::csrf() ?>
+                                <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                                <button type="submit"
+                                        class="text-xs px-3 py-1 rounded-lg font-medium <?= $u['is_active'] ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200' ?>"
+                                        onclick="return confirm('¿Confirmar cambio de estado?')">
+                                    <?= $u['is_active'] ? 'Desactivar' : 'Activar' ?>
+                                </button>
+                            </form>
+                            <form method="POST" action="/usuarios/<?= $u['id'] ?>/eliminar" class="inline"
+                                  onsubmit="return confirm('¿Eliminar usuario <?= View::e($u['username']) ?>? Esta acción no se puede deshacer.')">
+                                <?= View::csrf() ?>
+                                <button type="submit" class="text-xs px-2 py-1 rounded-lg font-medium bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                            <?php endif; ?>
+                        </div>
                     </td>
                     <?php endif; ?>
                 </tr>

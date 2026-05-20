@@ -26,19 +26,45 @@ class SucursalMiddleware
         // Para reactivar multi-sucursal: reemplazar este bloque con el código comentado abajo.
 
         if ($session->has('sucursal_actual') && $session->get('sucursal_actual') !== null) {
-            // Ya está en sesión — solo refrescar depósitos si faltan
-            if (!$session->has('depositos_disponibles') || empty($session->get('depositos_disponibles'))) {
-                $currSucursal = $session->get('sucursal_actual');
-                $depositos = $this->filtrarDepositos(Database::query(
-                    "SELECT * FROM depositos WHERE sucursal_id = ? AND estado = 'activo' ORDER BY es_principal DESC",
-                    [$currSucursal['sucursal_id']]
-                )->fetchAll());
-                $session->set('depositos_disponibles', $depositos);
-                if (!empty($depositos) && (!$session->has('deposito_actual') || empty($session->get('deposito_actual')))) {
-                    $session->set('deposito_actual', $depositos[0]);
+            // Validar que la sucursal en sesión sigue existiendo en DB
+            $currSucursal = $session->get('sucursal_actual');
+            $stillExists = Database::query(
+                "SELECT sucursal_id FROM branches WHERE sucursal_id = ? AND activa = 1",
+                [$currSucursal['sucursal_id']]
+            )->fetch();
+
+            if (!$stillExists) {
+                // Sucursal eliminada: limpiar sesión y volver a detectar
+                $session->remove('sucursal_actual');
+                $session->remove('deposito_actual');
+                $session->remove('depositos_disponibles');
+                $session->remove('sucursales_disponibles');
+            } else {
+                // Validar también que el depósito activo sigue existiendo
+                $currDeposito = $session->get('deposito_actual');
+                $depositoValido = $currDeposito && Database::query(
+                    "SELECT deposito_id FROM depositos WHERE deposito_id = ? AND estado = 'activo'",
+                    [$currDeposito['deposito_id']]
+                )->fetch();
+
+                if (!$depositoValido) {
+                    // Depósito eliminado: reasignar al primero disponible
+                    $depositos = $this->filtrarDepositos(Database::query(
+                        "SELECT * FROM depositos WHERE sucursal_id = ? AND estado = 'activo' ORDER BY es_principal DESC",
+                        [$currSucursal['sucursal_id']]
+                    )->fetchAll());
+                    $session->set('depositos_disponibles', $depositos);
+                    $session->set('deposito_actual', $depositos[0] ?? null);
+                } elseif (!$session->has('depositos_disponibles') || empty($session->get('depositos_disponibles'))) {
+                    $depositos = $this->filtrarDepositos(Database::query(
+                        "SELECT * FROM depositos WHERE sucursal_id = ? AND estado = 'activo' ORDER BY es_principal DESC",
+                        [$currSucursal['sucursal_id']]
+                    )->fetchAll());
+                    $session->set('depositos_disponibles', $depositos);
                 }
+
+                return true;
             }
-            return true;
         }
 
         // Primera carga: seleccionar empresa y sucursal principal automáticamente

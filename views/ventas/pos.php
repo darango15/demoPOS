@@ -144,6 +144,9 @@
                         <a href="/ventas" class="flex items-center px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-pos hover:bg-blue-50 rounded-lg transition-all group">
                             <i class="fas fa-list-ul mr-2 text-slate-400 group-hover:text-pos"></i>Ventas
                         </a>
+                        <a href="/configuracion" class="flex items-center px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-all group" title="Configurar descuentos POS">
+                            <i class="fas fa-cog mr-2 text-slate-400 group-hover:text-amber-500"></i>Configuración
+                        </a>
                     </nav>
                 </div>
 
@@ -173,7 +176,7 @@
         <div class="bg-white border-b border-gray-200 p-4">
             <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
                 <!-- Campo Código/Nombre -->
-                <div class="md:col-span-4">
+                <div class="md:col-span-5">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Código/Nombre</label>
                     <div class="relative">
                         <input type="text" id="txcodigo" placeholder="Buscar producto por código o nombre..."
@@ -184,9 +187,8 @@
                     <input type="hidden" id="txhcodigo" />
                 </div>
 
-
                 <!-- Selector Cliente -->
-                <div class="md:col-span-3">
+                <div class="md:col-span-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
                     <select id="txcliente"
                         class="w-full px-4 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-pos focus:border-transparent">
@@ -197,18 +199,8 @@
                     </select>
                 </div>
 
-                <!-- Selector Tipo de Precio -->
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo Precio</label>
-                    <select id="txprecio" onchange="mostrarResultados()"
-                        class="w-full px-4 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-pos focus:border-transparent font-semibold">
-                        <option value="a" class="text-indigo-700">A — Principal</option>
-                        <option value="b" class="text-emerald-700">B — Mayorista</option>
-                    </select>
-                </div>
-
                 <!-- Selector Método Pago -->
-                <div class="md:col-span-2">
+                <div class="md:col-span-3">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Método Pago</label>
                     <select id="txpago"
                         class="w-full px-4 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-pos focus:border-transparent">
@@ -247,6 +239,8 @@
                                             Cantidad</th>
                                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                                             Precio</th>
+                                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                                            Desc %</th>
                                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                                             Subtotal</th>
                                         <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
@@ -255,7 +249,7 @@
                                 </thead>
                                 <tbody id="posTable" class="bg-white divide-y divide-gray-200 receipt-font">
                                     <tr id="sin-productos">
-                                        <td colspan="7" class="px-4 py-8 text-center text-sm text-gray-500">
+                                        <td colspan="8" class="px-4 py-8 text-center text-sm text-gray-500">
                                             <i class="fas fa-shopping-cart text-3xl text-gray-300 mb-2"></i>
                                             <p>No hay productos en el carrito</p>
                                             <p class="text-xs mt-2">Busque productos usando el campo de búsqueda
@@ -299,21 +293,24 @@
             <div class="w-96 border-l border-gray-200 flex flex-col">
                 <!-- Totales -->
                 <div class="p-4 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Totales</h3>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">
+                        Totales
+                        <span class="text-xs font-normal text-gray-400 ml-2">Desc. máx: <?= (int)($max_descuento_pct ?? 10) ?>%</span>
+                    </h3>
                     <div class="space-y-2">
                         <div class="flex justify-between">
                             <span class="text-sm text-gray-600">Subtotal:</span>
                             <span id="subtotal" class="text-sm font-bold">$0.00</span>
+                        </div>
+                        <div id="fila-descuento" class="flex justify-between items-center py-1 px-2 rounded-lg transition-colors">
+                            <span class="text-sm font-semibold" id="label-descuento">Descuento:</span>
+                            <span id="descuento" class="text-sm font-bold">- $0.00</span>
                         </div>
                         <div class="flex justify-between items-center">
                             <span class="text-sm text-gray-600">
                                 <input type="checkbox" id="aplicar_itbms" class="mr-2"> ITBMS (7%)
                             </span>
                             <span id="itbms" class="text-sm font-bold text-green-600">$0.00</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-sm text-gray-600">Descuento:</span>
-                            <span id="descuento" class="text-sm font-bold">$0.00</span>
                         </div>
                         <div class="flex justify-between pt-2 border-t border-gray-200 mt-2">
                             <span class="text-lg font-bold text-gray-900">TOTAL:</span>
@@ -371,6 +368,7 @@
         let paginaActual = 1;
         const resultadosPorPagina = 5;
         const TASA_ITBMS = 0.07;
+        const MAX_DESCUENTO_PCT = <?= (int)($max_descuento_pct ?? 10) ?>;
         let elementosDOM = {};
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -384,6 +382,7 @@
                 contenedorBusqueda: document.getElementById('contenedor-busqueda'),
                 subtotal: document.getElementById('subtotal'),
                 itbms: document.getElementById('itbms'),
+                descuento: document.getElementById('descuento'),
                 total: document.getElementById('total'),
                 aplicarItbms: document.getElementById('aplicar_itbms'),
                 itemCount: document.getElementById('item-count')
@@ -439,10 +438,13 @@
             try {
                 let s = localStorage.getItem('pos_cart');
                 if (s) {
-                    carrito = JSON.parse(s);
+                    carrito = JSON.parse(s).map(item => ({
+                        ...item,
+                        descuento_pct: item.descuento_pct ?? 0
+                    }));
                     actualizarTabla();
                 }
-            } catch (e) {}
+            } catch (e) { carrito = []; }
         }
         function guardarCarritoLocal() {
             localStorage.setItem('pos_cart', JSON.stringify(carrito));
@@ -455,9 +457,8 @@
                     resultadosBusqueda = data.productos || [];
                     if (resultadosBusqueda.length === 1) {
                         const p = resultadosBusqueda[0];
-                        const tp = document.getElementById('txprecio').value;
-                        const pr = tp === 'a' ? parseFloat(p.precio_a) : parseFloat(p.precio_b);
-                        agregarAlCarrito(p, tp, pr, null, 'Unid.');
+                        const pr = parseFloat(p.precio_a) || 0;
+                        agregarAlCarrito(p, 'a', pr, null, 'Unid.');
                         volverAlCarrito();
                     } else if (resultadosBusqueda.length > 1) {
                         paginaActual = 1;
@@ -490,20 +491,13 @@
                 pagina.forEach(p => {
                     const imgUrl = p.imagen_principal ? '/assets/uploads/' + p.imagen_principal : '/assets/img/no-image.svg';
                     const prA = parseFloat(p.precio_a || 0);
-                    const prB = parseFloat(p.precio_b || 0);
                     const unidades = p.unidades || [];
-
-                    const tipoPrecio = document.getElementById('txprecio').value; // 'a' o 'b'
-                    const colores = { a: ['bg-indigo-500 hover:bg-indigo-600', 'bg-indigo-700 hover:bg-indigo-800'], b: ['bg-emerald-500 hover:bg-emerald-600', 'bg-emerald-700 hover:bg-emerald-800'] };
-                    const [colorBase, colorPres] = colores[tipoPrecio] || colores['a'];
-                    const labelTipo = tipoPrecio.toUpperCase();
-                    const precioBase = tipoPrecio === 'a' ? prA : prB;
 
                     // Fila base: unidad
                     let filasPrecios = `
                         <div class="flex items-center gap-2">
                             <span class="text-[10px] text-gray-400 w-14 shrink-0 text-right font-medium">Unidad</span>
-                            <button onclick="seleccionarYAgregar(${p.producto_id}, '${tipoPrecio}', ${precioBase}, null, 'Unid.')" class="px-4 py-1.5 ${colorBase} text-white text-sm font-bold rounded-lg transition-colors shadow-sm">$${precioBase.toFixed(2)}</button>
+                            <button onclick="seleccionarYAgregar(${p.producto_id}, 'a', ${prA}, null, 'Unid.')" class="px-4 py-1.5 bg-pos hover:bg-sky-600 text-white text-sm font-bold rounded-lg transition-colors shadow-sm">$${prA.toFixed(2)}</button>
                         </div>`;
 
                     // Filas por presentación
@@ -511,12 +505,11 @@
                         const uid = u.unidad_id;
                         const uNombre = u.nombre;
                         const uFactor = parseFloat(u.factor_conversion);
-                        const uPrecioMap = { a: parseFloat(u.precio_a || 0) || prA * uFactor, b: parseFloat(u.precio_b || 0) || prB * uFactor };
-                        const uPrecio = uPrecioMap[tipoPrecio];
+                        const uPrecio = parseFloat(u.precio_a || 0) || prA * uFactor;
                         filasPrecios += `
                         <div class="flex items-center gap-2 pt-1 border-t border-gray-100">
                             <span class="text-[10px] text-gray-500 w-14 shrink-0 text-right font-semibold truncate" title="${uNombre}">${uNombre}</span>
-                            <button onclick="seleccionarYAgregar(${p.producto_id}, '${tipoPrecio}', ${uPrecio}, ${uid}, '${uNombre}')" class="px-4 py-1.5 ${colorPres} text-white text-sm font-bold rounded-lg transition-colors shadow-sm">$${uPrecio.toFixed(2)}</button>
+                            <button onclick="seleccionarYAgregar(${p.producto_id}, 'a', ${uPrecio}, ${uid}, '${uNombre}')" class="px-4 py-1.5 bg-sky-700 hover:bg-sky-800 text-white text-sm font-bold rounded-lg transition-colors shadow-sm">$${uPrecio.toFixed(2)}</button>
                         </div>`;
                     });
 
@@ -569,6 +562,7 @@
                     precio: parseFloat(precio),
                     tipo: tipo,
                     cantidad: 1,
+                    descuento_pct: 0,
                     unidad_id: unidadId,
                     presentacion: presentacion,
                     aplica_itbms: p.itbms == 1
@@ -583,7 +577,7 @@
             
             if (carrito.length === 0) {
                 tbody.innerHTML = `<tr id="sin-productos">
-                    <td colspan="7" class="px-4 py-8 text-center text-sm text-gray-500">
+                    <td colspan="8" class="px-4 py-8 text-center text-sm text-gray-500">
                         <i class="fas fa-shopping-cart text-3xl text-gray-300 mb-2"></i>
                         <p>No hay productos en el carrito</p>
                         <p class="text-xs mt-2">Busque productos usando el campo de búsqueda superior</p>
@@ -594,13 +588,15 @@
                 carrito.forEach((item, i) => {
                     const tr = document.createElement('tr');
                     tr.className = "hover:bg-gray-50 transition receipt-font";
-                    const subtotal = item.cantidad * item.precio;
+                    const descPct = item.descuento_pct || 0;
+                    const descMonto = item.cantidad * item.precio * (descPct / 100);
+                    const linea = (item.cantidad * item.precio) - descMonto;
                     tr.innerHTML = `
                         <td class="px-4 py-3 text-sm">${i + 1}</td>
                         <td class="px-4 py-3 text-sm font-mono">${item.codigo}</td>
                         <td class="px-4 py-3">
                             <div class="text-sm font-medium text-gray-900 line-clamp-1">${item.nombre}</div>
-                            <div class="text-xs text-gray-500 mt-0.5">${item.presentacion || 'Unid.'} · Precio ${item.tipo.toUpperCase()}</div>
+                            <div class="text-xs text-gray-500 mt-0.5">${item.presentacion || 'Unid.'}</div>
                         </td>
                         <td class="px-4 py-3 text-center">
                             <input type="number" min="1" step="1" value="${item.cantidad}" class="w-16 text-center border border-gray-300 rounded text-sm py-1 focus:outline-none focus:border-pos" onchange="cambiarCantidad(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
@@ -608,7 +604,13 @@
                         <td class="px-4 py-3 text-right text-sm">
                             <input type="number" step="0.01" min="0" value="${item.precio.toFixed(2)}" class="w-20 text-right border border-gray-300 rounded text-sm py-1 focus:outline-none focus:border-pos bg-gray-50" onchange="cambiarPrecio(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
                         </td>
-                        <td class="px-4 py-3 text-right text-sm font-bold">$${subtotal.toFixed(2)}</td>
+                        <td class="px-4 py-3 text-center">
+                            <div class="relative inline-flex items-center">
+                                <input type="number" step="0.5" min="0" max="${MAX_DESCUENTO_PCT}" value="${descPct.toFixed(1)}" class="w-16 text-center border border-amber-200 rounded text-sm py-1 focus:outline-none focus:border-amber-400 bg-amber-50 text-amber-700 font-semibold pr-4" onchange="cambiarDescuento(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
+                                <span class="absolute right-1.5 text-xs text-amber-500 pointer-events-none font-bold">%</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-right text-sm font-bold">$${linea.toFixed(2)}</td>
                         <td class="px-4 py-3 text-center">
                             <button onclick="eliminar(${i})" class="w-8 h-8 rounded text-gray-400 hover:text-red-500 transition-colors bg-white hover:bg-red-50"><i class="fas fa-trash"></i></button>
                         </td>
@@ -633,19 +635,47 @@
             actualizarTabla();
         }
 
+        function cambiarDescuento(i, v) {
+            const pct = Math.min(MAX_DESCUENTO_PCT, Math.max(0, parseFloat(v) || 0));
+            carrito[i].descuento_pct = pct;
+            actualizarTabla();
+        }
+
         function eliminar(i) {
             carrito.splice(i, 1);
             actualizarTabla();
         }
 
         function actualizarTotales() {
-            let subtotal = carrito.reduce((s, item) => s + (item.cantidad * item.precio), 0);
-            let itbms = elementosDOM.aplicarItbms.checked ? subtotal * TASA_ITBMS : 0;
-            let total = subtotal + itbms;
+            let subtotalBruto = carrito.reduce((s, item) => s + (item.cantidad * item.precio), 0);
+            let descuentoTotal = carrito.reduce((s, item) => {
+                return s + (item.cantidad * item.precio * ((item.descuento_pct || 0) / 100));
+            }, 0);
+            let subtotalNeto = subtotalBruto - descuentoTotal;
+            let itbms = elementosDOM.aplicarItbms.checked ? subtotalNeto * TASA_ITBMS : 0;
+            let total = subtotalNeto + itbms;
 
-            elementosDOM.subtotal.textContent = `$${subtotal.toFixed(2)}`;
+            elementosDOM.subtotal.textContent = `$${subtotalBruto.toFixed(2)}`;
+            elementosDOM.descuento.textContent = `- $${descuentoTotal.toFixed(2)}`;
             elementosDOM.itbms.textContent = `$${itbms.toFixed(2)}`;
             elementosDOM.total.textContent = `$${total.toFixed(2)}`;
+
+            // Highlight descuento row when active
+            const filaDesc = document.getElementById('fila-descuento');
+            const labelDesc = document.getElementById('label-descuento');
+            if (descuentoTotal > 0) {
+                filaDesc.classList.add('bg-amber-50');
+                labelDesc.classList.add('text-amber-600');
+                labelDesc.classList.remove('text-gray-600');
+                elementosDOM.descuento.classList.add('text-amber-600');
+                elementosDOM.descuento.classList.remove('text-gray-800');
+            } else {
+                filaDesc.classList.remove('bg-amber-50');
+                labelDesc.classList.remove('text-amber-600');
+                labelDesc.classList.add('text-gray-600');
+                elementosDOM.descuento.classList.remove('text-amber-600');
+                elementosDOM.descuento.classList.add('text-gray-800');
+            }
         }
 
         function limpiarCarrito() {
@@ -672,7 +702,7 @@
                     producto_id: i.id,
                     cantidad: i.cantidad,
                     precio: i.precio,
-                    descuento: 0,
+                    descuento: i.cantidad * i.precio * ((i.descuento_pct || 0) / 100),
                     unidad_id: i.unidad_id || null
                 }))
             };

@@ -58,6 +58,8 @@ class ConfiguracionController extends Controller
                 'backup_automatico' => true,
                 'hora_backup' => '23:00',
                 'sincronizacion_automatica' => true,
+                'pos_desc_cajero' => (int)($empresa->pos_desc_cajero ?? 10),
+                'pos_desc_gerente' => (int)($empresa->pos_desc_gerente ?? 50),
             ]
         ]);
     }
@@ -88,6 +90,8 @@ class ConfiguracionController extends Controller
         $data = [
             'nombre_comercial' => $this->request->post('nombre_negocio', ''),
             'ai_enabled' => $this->request->post('ai_enabled') ? 1 : 0,
+            'pos_desc_cajero'  => max(0, min(100, (int)$this->request->post('pos_desc_cajero', 10))),
+            'pos_desc_gerente' => max(0, min(100, (int)$this->request->post('pos_desc_gerente', 50))),
         ];
 
         // Nota: Otros campos como moneda e impuesto podrían requerir cambios en .env o tabla de config separada
