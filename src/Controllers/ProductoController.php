@@ -12,6 +12,7 @@ use App\Inventory\Domain\Model\ProductId;
 use App\Models\PrecioProducto;
 use App\Models\Producto;
 use App\Services\AuditService;
+use App\Services\SimpleXlsxWriter;
 use App\Shared\Infrastructure\ServiceFactory;
 
 /**
@@ -440,37 +441,26 @@ class ProductoController extends Controller
              LEFT JOIN precios_productos pa ON pa.producto_id = p.producto_id AND pa.tipo_precio = 'A'
              LEFT JOIN precios_productos pb ON pb.producto_id = p.producto_id AND pb.tipo_precio = 'B'
              LEFT JOIN inventario i ON i.producto_id = p.producto_id
+             WHERE p.empresa_id = ?
              GROUP BY p.producto_id, pa.precio, pb.precio
              ORDER BY cp.nombre, p.nombre",
-            []
+            [$this->empresaId()]
         )->fetchAll();
 
-        $filename = 'inventario_' . date('Y-m-d') . '.csv';
+        $headers = ['Código', 'Nombre', 'Categoría', 'Marca', 'Precio A', 'Precio B', 'Costo', 'Stock', 'Estado'];
 
-        header('Content-Type: text/csv; charset=UTF-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        header('Cache-Control: no-cache, no-store, must-revalidate');
+        $rows = array_map(fn($p) => [
+            $p['codigo']        ?? '',
+            $p['nombre']        ?? '',
+            $p['categoria']     ?? '',
+            $p['marca']         ?? '',
+            number_format((float) $p['precio_a'], 2, '.', ''),
+            number_format((float) $p['precio_b'], 2, '.', ''),
+            number_format((float) $p['costo'],    2, '.', ''),
+            (int) $p['stock'],
+            $p['estado']        ?? '',
+        ], $productos);
 
-        $out = fopen('php://output', 'w');
-        fputs($out, "\xEF\xBB\xBF");
-
-        fputcsv($out, ['Código', 'Nombre', 'Categoría', 'Marca', 'Precio A', 'Precio B', 'Costo', 'Stock', 'Estado'], ';');
-
-        foreach ($productos as $p) {
-            fputcsv($out, [
-                $p['codigo'],
-                $p['nombre'],
-                $p['categoria'] ?? '',
-                $p['marca']     ?? '',
-                number_format((float)$p['precio_a'], 2, '.', ''),
-                number_format((float)$p['precio_b'], 2, '.', ''),
-                number_format((float)$p['costo'],    2, '.', ''),
-                (int)$p['stock'],
-                $p['estado'],
-            ], ';');
-        }
-
-        fclose($out);
-        exit;
+        SimpleXlsxWriter::output('inventario_' . date('Y-m-d') . '.xlsx', $headers, $rows);
     }
 }

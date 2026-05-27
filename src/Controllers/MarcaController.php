@@ -11,20 +11,67 @@ class MarcaController extends Controller
     public function index(): void
     {
         $empresaId = $this->empresaId();
+        $page      = max(1, (int) $this->request->get('page', '1'));
+        $perPage   = \in_array((int) $this->request->get('por_pagina', '25'), [10, 25, 50, 100], true)
+                        ? (int) $this->request->get('por_pagina', '25') : 25;
+        $buscar    = trim($this->request->get('buscar', ''));
+
+        $where  = 'm.empresa_id = ?';
+        $params = [$empresaId];
+
+        if ($buscar !== '') {
+            $where   .= ' AND m.nombre LIKE ?';
+            $params[] = "%{$buscar}%";
+        }
+
+        $offset = ($page - 1) * $perPage;
+
+        $total = (int) Database::query(
+            "SELECT COUNT(*) AS total FROM marcas m WHERE {$where}",
+            $params
+        )->fetch()['total'];
+
         $marcas = Database::query(
-            "SELECT m.*, COUNT(p.producto_id) as total_productos
+            "SELECT m.*, COUNT(p.producto_id) AS total_productos
              FROM marcas m
              LEFT JOIN productos p ON p.marca = m.nombre AND p.empresa_id = m.empresa_id
-             WHERE m.empresa_id = ?
+             WHERE {$where}
              GROUP BY m.marca_id
-             ORDER BY m.nombre ASC",
-            [$empresaId]
+             ORDER BY m.nombre ASC
+             LIMIT {$perPage} OFFSET {$offset}",
+            $params
         )->fetchAll();
 
+        $totalPages = max(1, (int) ceil($total / $perPage));
+
+        $stats = Database::query(
+            "SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN (
+                    SELECT COUNT(*) FROM productos p
+                    WHERE p.marca = m.nombre AND p.empresa_id = m.empresa_id
+                ) > 0 THEN 1 ELSE 0 END) AS con_productos,
+                (SELECT COUNT(*) FROM productos
+                 WHERE empresa_id = ? AND marca IS NOT NULL AND marca != '') AS total_asignados
+             FROM marcas m WHERE m.empresa_id = ?",
+            [$empresaId, $empresaId]
+        )->fetch();
+
         $this->view('inventario.marcas', [
-            'page_title' => 'Marcas',
+            'page_title'    => 'Marcas',
             'page_subtitle' => 'Gestión de marcas de productos',
-            'marcas' => $marcas,
+            'marcas'        => $marcas,
+            'stats'         => $stats,
+            'pagination'    => [
+                'total'         => $total,
+                'per_page'      => $perPage,
+                'current_page'  => $page,
+                'total_pages'   => $totalPages,
+                'has_previous'  => $page > 1,
+                'has_next'      => $page < $totalPages,
+                'previous_page' => max(1, $page - 1),
+                'next_page'     => min($totalPages, $page + 1),
+            ],
         ]);
     }
 

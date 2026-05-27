@@ -11,9 +11,11 @@ class CategoriaController extends Controller
 {
     public function index(): void
     {
+        if (!$this->requirePermission('categorias.ver')) return;
+
         $empresaId = $this->empresaId();
         $page      = max(1, (int) $this->request->get('page', '1'));
-        $perPage   = in_array((int) $this->request->get('por_pagina', '25'), [10, 25, 50, 100])
+        $perPage   = \in_array((int) $this->request->get('por_pagina', '25'), [10, 25, 50, 100], true)
                         ? (int) $this->request->get('por_pagina', '25') : 25;
         $buscar    = trim($this->request->get('buscar', ''));
         $padreId   = $this->request->get('padre_id', '');
@@ -90,6 +92,8 @@ class CategoriaController extends Controller
 
     public function crear(): void
     {
+        if (!$this->requirePermission('categorias.crear')) return;
+
         $categorias = CategoriaProducto::where(['empresa_id' => $this->empresaId()], 'nombre ASC');
         $this->view('categorias.crear', [
             'page_title' => 'Nueva Categoría',
@@ -100,6 +104,7 @@ class CategoriaController extends Controller
 
     public function guardar(): void
     {
+        if (!$this->requirePermission('categorias.crear')) return;
         if (!$this->verifyCsrf()) return;
 
         $data = [
@@ -119,6 +124,8 @@ class CategoriaController extends Controller
 
     public function editar(int $categoria_id): void
     {
+        if (!$this->requirePermission('categorias.editar')) return;
+
         $empresaId = $this->empresaId();
         $categoria = CategoriaProducto::whereFirst([
             'categoria_id' => $categoria_id,
@@ -144,6 +151,7 @@ class CategoriaController extends Controller
 
     public function actualizar(int $categoria_id): void
     {
+        if (!$this->requirePermission('categorias.editar')) return;
         if (!$this->verifyCsrf()) return;
 
         $empresaId = $this->empresaId();
@@ -174,6 +182,7 @@ class CategoriaController extends Controller
 
     public function eliminar(int $categoria_id): void
     {
+        if (!$this->requirePermission('categorias.eliminar')) return;
         if (!$this->verifyCsrf()) return;
         
         $empresaId = $this->empresaId();
