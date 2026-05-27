@@ -190,13 +190,21 @@
                 <!-- Selector Cliente -->
                 <div class="md:col-span-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
-                    <select id="txcliente"
-                        class="w-full px-4 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-pos focus:border-transparent">
-                        <option value="">Consumidor Final</option>
-                        <?php foreach (($clientes ?? []) as $cliente): ?>
-                        <option value="<?= $cliente['cliente_id'] ?>"><?= View::e(mb_substr($cliente['nombre'], 0, 30)) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div class="flex gap-2">
+                        <div class="flex-1 min-w-0">
+                            <select id="txcliente" style="width:100%"
+                                class="px-4 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-pos focus:border-transparent">
+                                <option value="">Consumidor Final</option>
+                                <?php foreach (($clientes ?? []) as $cliente): ?>
+                                <option value="<?= $cliente['cliente_id'] ?>"><?= View::e(mb_substr($cliente['nombre'], 0, 40)) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <button type="button" id="btn-nuevo-cliente" title="Agregar nuevo cliente"
+                            class="px-3 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition shrink-0 text-sm">
+                            <i class="fas fa-user-plus"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Selector Método Pago -->
@@ -352,6 +360,49 @@
         </div>
     </div>
 
+    <!-- Modal: Nuevo Cliente -->
+    <div id="modal-nuevo-cliente" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-user-plus text-emerald-500 text-sm"></i> Nuevo Cliente
+                </h3>
+                <button onclick="cerrarModalCliente()" class="text-gray-300 hover:text-gray-500 transition">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 mb-1">Nombre / Razón Social <span class="text-red-500">*</span></label>
+                    <input type="text" id="nc-nombre" placeholder="Ej: Juan Pérez"
+                        class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">RUC</label>
+                        <input type="text" id="nc-ruc" placeholder="RUC opcional"
+                            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Teléfono</label>
+                        <input type="text" id="nc-telefono" placeholder="6000-0000"
+                            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent">
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3 justify-end mt-5">
+                <button onclick="cerrarModalCliente()"
+                    class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">
+                    Cancelar
+                </button>
+                <button onclick="guardarNuevoCliente()" id="btn-guardar-cliente"
+                    class="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-semibold hover:bg-emerald-600 transition">
+                    <i class="fas fa-save mr-1"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script>
         function toast(msg, type = 'info', duration = 5000) {
@@ -390,9 +441,20 @@
 
             elementosDOM.txcodigo.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
+                    clearTimeout(window._posSearchTimer);
                     if (e.target.value.trim().length > 0) {
                         buscarProductos(e.target.value.trim());
                     }
+                }
+            });
+
+            elementosDOM.txcodigo.addEventListener('input', function() {
+                clearTimeout(window._posSearchTimer);
+                const q = this.value.trim();
+                if (q.length >= 2) {
+                    window._posSearchTimer = setTimeout(() => buscarProductos(q), 400);
+                } else if (q.length === 0) {
+                    volverAlCarrito();
                 }
             });
             
@@ -525,7 +587,7 @@
                         <td class="px-3 py-2 text-xs text-gray-400 text-center">${p.lugar || '—'}</td>
                         <td class="px-3 py-2">${filasPrecios}</td>
                         <td class="px-3 py-2 text-center">
-                            <button onclick="seleccionarYAgregar(${p.producto_id}, '${tipoPrecio}', ${precioBase}, null, 'Unid.')" class="w-8 h-8 rounded-lg bg-gray-800 text-white flex items-center justify-center hover:bg-gray-700 transition-colors mx-auto shadow"><i class="fas fa-plus text-xs"></i></button>
+                            <button onclick="seleccionarYAgregar(${p.producto_id}, 'a', ${prA}, null, 'Unid.')" class="w-8 h-8 rounded-lg bg-gray-800 text-white flex items-center justify-center hover:bg-gray-700 transition-colors mx-auto shadow"><i class="fas fa-plus text-xs"></i></button>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -723,6 +785,48 @@
             } catch (e) { toast(e.message, 'error'); }
         }
 
+        function cerrarModalCliente() {
+            document.getElementById('modal-nuevo-cliente').classList.add('hidden');
+        }
+
+        async function guardarNuevoCliente() {
+            const nombre = document.getElementById('nc-nombre').value.trim();
+            if (!nombre) { document.getElementById('nc-nombre').focus(); return; }
+
+            const btn = document.getElementById('btn-guardar-cliente');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Guardando...';
+
+            try {
+                const r = await fetch('/ventas/clientes/rapido', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '<?= $_SESSION['csrf_token'] ?? '' ?>'
+                    },
+                    body: JSON.stringify({
+                        nombre:   nombre,
+                        ruc:      document.getElementById('nc-ruc').value.trim(),
+                        telefono: document.getElementById('nc-telefono').value.trim()
+                    })
+                });
+                const res = await r.json();
+                if (!r.ok) throw new Error(res.error || 'Error al guardar');
+
+                // Agregar al Select2 y seleccionarlo
+                const opt = new Option(res.nombre, res.cliente_id, true, true);
+                $('#txcliente').append(opt).trigger('change');
+
+                cerrarModalCliente();
+                toast('Cliente "' + res.nombre + '" creado', 'success');
+            } catch (e) {
+                toast(e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-save mr-1"></i> Guardar';
+            }
+        }
+
         function actualizarPaginacion() {
             const cont = document.getElementById('controles-paginacion');
             if (!cont) return;
@@ -740,11 +844,29 @@
             }
         }
 
-        // Add keyboard esc to hide search
+        // Esc: cerrar búsqueda o modal cliente
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && !elementosDOM.contenedorBusqueda.classList.contains('hidden')) {
-                volverAlCarrito();
+            if (e.key === 'Escape') {
+                if (!document.getElementById('modal-nuevo-cliente').classList.contains('hidden')) {
+                    cerrarModalCliente();
+                } else if (!elementosDOM.contenedorBusqueda.classList.contains('hidden')) {
+                    volverAlCarrito();
+                }
             }
+        });
+
+        // Botón nuevo cliente
+        document.getElementById('btn-nuevo-cliente').addEventListener('click', function() {
+            document.getElementById('nc-nombre').value   = '';
+            document.getElementById('nc-ruc').value      = '';
+            document.getElementById('nc-telefono').value = '';
+            document.getElementById('modal-nuevo-cliente').classList.remove('hidden');
+            setTimeout(() => document.getElementById('nc-nombre').focus(), 80);
+        });
+
+        // Enter dentro del modal
+        document.getElementById('modal-nuevo-cliente').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') guardarNuevoCliente();
         });
     </script>
 </body>

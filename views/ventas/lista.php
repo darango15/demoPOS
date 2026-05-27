@@ -1,10 +1,19 @@
 <?php use App\Core\View; View::layout('app'); ?>
 <?php
 View::section('content');
-$estado_actual = $estado_actual ?? '';
-$cliente_actual = $cliente_actual ?? '';
-$fecha_inicio_actual = $fecha_inicio_actual ?? '';
-$fecha_fin_actual = $fecha_fin_actual ?? '';
+$estado_actual       ??= '';
+$cliente_actual      ??= '';
+$fecha_inicio_actual ??= '';
+$fecha_fin_actual    ??= '';
+
+// JSON para el autocomplete de clientes
+$clienteNombreActual = '';
+$clientes_json = json_encode(array_map(function($c) use ($cliente_actual, &$clienteNombreActual) {
+    $id     = is_object($c) ? $c->cliente_id : ($c['cliente_id'] ?? '');
+    $nombre = is_object($c) ? $c->nombre     : ($c['nombre']     ?? '');
+    if ((string)$id === (string)$cliente_actual) $clienteNombreActual = $nombre;
+    return ['id' => (string)$id, 'nombre' => $nombre];
+}, $clientes ?? []));
 ?>
 
 <!-- Métricas -->
@@ -29,7 +38,7 @@ $fecha_fin_actual = $fecha_fin_actual ?? '';
 
 <!-- Filtros + acciones -->
 <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-3 mb-4">
-    <form method="get" class="flex flex-wrap items-end gap-3">
+    <form method="get" id="ventas-search-form" class="flex flex-wrap items-end gap-3">
         <div class="flex-1 min-w-36">
             <label class="block text-xs font-semibold text-gray-500 mb-1">Fecha Inicio</label>
             <input type="date" name="fecha_inicio" value="<?= View::e($fecha_inicio_actual) ?>"
@@ -49,25 +58,49 @@ $fecha_fin_actual = $fecha_fin_actual ?? '';
                 <option value="anulada" <?= $estado_actual == 'anulada' ? 'selected' : '' ?>>Anuladas</option>
             </select>
         </div>
+        <!-- Autocomplete de clientes -->
         <div class="flex-1 min-w-40">
             <label class="block text-xs font-semibold text-gray-500 mb-1">Cliente</label>
-            <select name="cliente" class="w-full py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
-                <option value="">Todos</option>
-                <?php foreach (($clientes ?? []) as $cliente):
-                      $cId = is_object($cliente) ? $cliente->cliente_id : ($cliente['cliente_id'] ?? '');
-                      $cNombre = is_object($cliente) ? $cliente->nombre : ($cliente['nombre'] ?? '');
-                ?>
-                <option value="<?= $cId ?>" <?= $cliente_actual == $cId ? 'selected' : '' ?>><?= View::e($cNombre) ?></option>
-                <?php endforeach; ?>
-            </select>
+            <div x-data="ventasClienteFilter()" @click.outside="open = false" class="relative">
+                <input type="hidden" name="cliente" :value="selectedId">
+                <div class="relative">
+                    <i class="fas fa-user absolute left-0 top-2 text-gray-400 text-xs"></i>
+                    <input type="text"
+                        x-model="search"
+                        @focus="open = true"
+                        @input="open = true"
+                        placeholder="Buscar cliente..."
+                        autocomplete="off"
+                        class="w-full pl-5 pr-5 py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none">
+                    <button type="button" x-show="selectedId" @click="clear()"
+                        class="absolute right-0 top-1.5 text-gray-300 hover:text-gray-500 text-xs">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div x-show="open && filtered.length > 0"
+                    class="absolute z-20 mt-1 w-56 bg-white rounded-lg border border-gray-100 shadow-lg overflow-hidden">
+                    <div class="max-h-52 overflow-y-auto divide-y divide-gray-50">
+                        <button type="button" @click="clear()"
+                            class="w-full text-left px-3 py-2 text-xs text-gray-400 hover:bg-sky-50 flex items-center gap-2">
+                            <i class="fas fa-users text-gray-300 text-xs"></i> Todos los clientes
+                        </button>
+                        <template x-for="c in filtered" :key="c.id">
+                            <button type="button" @click="select(c)"
+                                class="w-full text-left px-3 py-2 text-sm hover:bg-sky-50 flex items-center gap-2 transition-colors"
+                                :class="c.id === selectedId ? 'bg-sky-50 text-sky-700 font-semibold' : 'text-gray-700'">
+                                <i class="fas fa-user text-gray-300 text-xs shrink-0"></i>
+                                <span x-text="c.nombre" class="truncate"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </div>
         </div>
+
         <div class="flex gap-2">
             <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-semibold hover:bg-sky-600 transition shadow-sm">
                 <i class="fas fa-filter"></i> Filtrar
             </button>
-            <a href="/ventas/pos" class="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-800 text-white rounded-lg text-sm font-semibold hover:bg-gray-900 transition shadow-sm">
-                <i class="fas fa-cash-register"></i> Punto de Venta
-            </a>
         </div>
     </form>
 </div>
@@ -166,6 +199,34 @@ $fecha_fin_actual = $fecha_fin_actual ?? '';
 
 <?php View::section('extra_js'); ?>
 <script>
+    function ventasClienteFilter() {
+        return {
+            open: false,
+            search: <?= json_encode($clienteNombreActual) ?>,
+            selectedId: <?= json_encode((string)$cliente_actual) ?>,
+            clientes: <?= $clientes_json ?>,
+            get filtered() {
+                if (!this.search) return this.clientes.slice(0, 15);
+                var q = this.search.toLowerCase();
+                return this.clientes.filter(function(c) {
+                    return c.nombre.toLowerCase().indexOf(q) !== -1;
+                }).slice(0, 15);
+            },
+            select: function(c) {
+                this.search = c.nombre;
+                this.selectedId = c.id;
+                this.open = false;
+                document.getElementById('ventas-search-form').submit();
+            },
+            clear: function() {
+                this.search = '';
+                this.selectedId = '';
+                this.open = false;
+                document.getElementById('ventas-search-form').submit();
+            }
+        };
+    }
+
     function imprimirFactura(ventaId) { window.open(`/ventas/venta/${ventaId}/?print=true`, '_blank'); }
 
     function abrirModalAnular(ventaId, numeroFactura) {

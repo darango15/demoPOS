@@ -606,6 +606,37 @@ class VentaController extends Controller
     }
 
     /**
+     * API: Crear cliente rápido desde el POS
+     */
+    public function crearClienteRapido(): void
+    {
+        $data   = $this->request->json() ?: [];
+        $nombre = trim($data['nombre'] ?? '');
+
+        if ($nombre === '') {
+            $this->json(['error' => 'El nombre es requerido'], 422);
+            return;
+        }
+
+        try {
+            Database::query(
+                "INSERT INTO clientes (empresa_id, nombre, ruc, telefono, estado)
+                 VALUES (?, ?, ?, ?, 'activo')",
+                [
+                    $this->empresaId(),
+                    $nombre,
+                    trim($data['ruc']      ?? '') ?: null,
+                    trim($data['telefono'] ?? '') ?: null,
+                ]
+            );
+            $id = (int) Database::lastInsertId();
+            $this->json(['success' => true, 'cliente_id' => $id, 'nombre' => $nombre]);
+        } catch (\Exception $e) {
+            $this->json(['error' => 'Error al crear el cliente'], 500);
+        }
+    }
+
+    /**
      * API: Verificar stock
      */
     public function apiVerificarStock(int $producto_id): void

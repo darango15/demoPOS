@@ -12,25 +12,40 @@ class ProveedorController extends Controller
 {
     public function index(): void
     {
-        $buscar = $this->request->get('buscar', '');
+        $buscar    = trim($this->request->get('buscar', ''));
         $empresaId = $this->empresaId();
-        $where = 'empresa_id = ?';
+        $perPage   = \in_array((int) $this->request->get('por_pagina', '25'), [10, 25, 50, 100], true)
+                        ? (int) $this->request->get('por_pagina', '25') : 25;
+        $page      = max(1, (int) $this->request->get('page', '1'));
+
+        $where  = 'empresa_id = ?';
         $params = [$empresaId];
-        if ($buscar) {
-            $where .= " AND (nombre LIKE ? OR codigo LIKE ? OR ruc LIKE ?)";
+        if ($buscar !== '') {
+            $where   .= ' AND (nombre LIKE ? OR codigo LIKE ? OR ruc LIKE ?)';
             $params[] = "%{$buscar}%";
             $params[] = "%{$buscar}%";
             $params[] = "%{$buscar}%";
         }
-        $page = (int) ($this->request->get('page', '1'));
-        $proveedores = Proveedor::paginate(25, $page, $where, $params, 'nombre ASC');
+
+        $proveedores = Proveedor::paginate($perPage, $page, $where, $params, 'nombre ASC');
+
+        $stats = Database::query(
+            "SELECT
+                COUNT(*)                                                              AS total,
+                SUM(CASE WHEN estado = 'activo'   THEN 1 ELSE 0 END)                AS activos,
+                SUM(CASE WHEN estado != 'activo'  THEN 1 ELSE 0 END)                AS inactivos,
+                (SELECT COUNT(DISTINCT proveedor_id) FROM compras WHERE empresa_id = ?) AS con_compras
+             FROM proveedores WHERE empresa_id = ?",
+            [$empresaId, $empresaId]
+        )->fetch();
 
         $this->view('proveedores.lista', [
-            'page_title' => 'Proveedores',
+            'page_title'    => 'Proveedores',
             'page_subtitle' => 'Gestión de proveedores',
-            'proveedores' => $proveedores['items'],
-            'pagination' => $proveedores,
-            'buscar' => $buscar,
+            'proveedores'   => $proveedores['items'],
+            'pagination'    => $proveedores,
+            'buscar'        => $buscar,
+            'stats'         => $stats,
         ]);
     }
 

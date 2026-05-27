@@ -12,21 +12,70 @@ class DepositoController extends Controller
     public function index(): void
     {
         $sucursalId = $this->sucursalId();
+        $buscar     = trim($this->request->get('buscar', ''));
+        $perPage    = \in_array((int) $this->request->get('por_pagina', '25'), [10, 25, 50, 100], true)
+                        ? (int) $this->request->get('por_pagina', '25') : 25;
+        $page       = max(1, (int) $this->request->get('page', '1'));
+        $offset     = ($page - 1) * $perPage;
+
+        $where  = 'd.sucursal_id = ?';
+        $params = [$sucursalId];
+        if ($buscar !== '') {
+            $where   .= ' AND (d.nombre LIKE ? OR d.codigo LIKE ?)';
+            $params[] = "%{$buscar}%";
+            $params[] = "%{$buscar}%";
+        }
+
+        $total = (int) Database::query(
+            "SELECT COUNT(*) AS total FROM depositos d WHERE {$where}",
+            $params
+        )->fetch()['total'];
+
         $depositos = Database::query(
-            "SELECT d.*, s.nombre as sucursal_nombre,
-                    (SELECT COUNT(*) FROM inventario WHERE deposito_id = d.deposito_id) as total_productos,
-                    (SELECT COALESCE(SUM(existencia), 0) FROM inventario WHERE deposito_id = d.deposito_id) as stock_total
+            "SELECT d.*,
+                    (SELECT COUNT(*) FROM inventario WHERE deposito_id = d.deposito_id) AS total_productos,
+                    (SELECT COALESCE(SUM(existencia), 0) FROM inventario WHERE deposito_id = d.deposito_id) AS stock_total
              FROM depositos d
-             LEFT JOIN branches s ON d.sucursal_id = s.sucursal_id
-             WHERE d.sucursal_id = ?
-             ORDER BY d.nombre",
-            [$sucursalId]
+             WHERE {$where}
+             ORDER BY d.es_principal DESC, d.nombre ASC
+             LIMIT {$perPage} OFFSET {$offset}",
+            $params
         )->fetchAll();
 
+        $totalPages = max(1, (int) ceil($total / $perPage));
+
+        $stats = Database::query(
+            "SELECT
+                COUNT(*)                                                         AS total,
+                SUM(CASE WHEN estado = 'activo'  THEN 1 ELSE 0 END)             AS activos,
+                (SELECT COUNT(DISTINCT i.producto_id)
+                 FROM inventario i
+                 JOIN depositos d2 ON i.deposito_id = d2.deposito_id
+                 WHERE d2.sucursal_id = ?)                                       AS total_skus,
+                (SELECT COALESCE(SUM(i2.existencia), 0)
+                 FROM inventario i2
+                 JOIN depositos d3 ON i2.deposito_id = d3.deposito_id
+                 WHERE d3.sucursal_id = ?)                                       AS stock_total
+             FROM depositos WHERE sucursal_id = ?",
+            [$sucursalId, $sucursalId, $sucursalId]
+        )->fetch();
+
         $this->view('depositos.lista', [
-            'page_title' => 'Depósitos',
+            'page_title'    => 'Depósitos',
             'page_subtitle' => 'Gestión de almacenes',
-            'depositos' => $depositos,
+            'depositos'     => $depositos,
+            'stats'         => $stats,
+            'buscar'        => $buscar,
+            'pagination'    => [
+                'total'         => $total,
+                'per_page'      => $perPage,
+                'current_page'  => $page,
+                'total_pages'   => $totalPages,
+                'has_previous'  => $page > 1,
+                'has_next'      => $page < $totalPages,
+                'previous_page' => max(1, $page - 1),
+                'next_page'     => min($totalPages, $page + 1),
+            ],
         ]);
     }
 

@@ -25,6 +25,7 @@ $router->group([
     $r->get('/api/productos/buscar',              [VentaController::class, 'apiBuscarProductos']);
     $r->get('/api/productos/{producto_id}/stock', [VentaController::class, 'apiVerificarStock']);
     $r->get('/api/depositos',                     [VentaController::class, 'apiDepositos']);
+    $r->post('/ventas/clientes/rapido',           [VentaController::class, 'crearClienteRapido']);
 
     // Cotizaciones
     $r->get('/ventas/cotizaciones',                            [CotizacionController::class, 'index']);

@@ -20,26 +20,77 @@ class TrasladoController extends Controller
     public function index(): void
     {
         $sucursalId = $this->sucursalId();
-        
-        // Traslados donde origen o destino pertenecen a la sucursal actual
-        $traslados = Database::query(
-            "SELECT t.*, 
-                    do.nombre as origen_nombre, 
-                    dd.nombre as destino_nombre,
-                    CONCAT(ue.first_name, ' ', ue.last_name) as usuario_envia_nombre
+        $buscar     = trim($this->request->get('buscar', ''));
+        $perPage    = \in_array((int) $this->request->get('por_pagina', '25'), [10, 25, 50, 100], true)
+                        ? (int) $this->request->get('por_pagina', '25') : 25;
+        $page       = max(1, (int) $this->request->get('page', '1'));
+        $offset     = ($page - 1) * $perPage;
+
+        $baseWhere  = '(do.sucursal_id = ? OR dd.sucursal_id = ?)';
+        $params     = [$sucursalId, $sucursalId];
+
+        if ($buscar !== '') {
+            $baseWhere .= ' AND (CONCAT(ue.first_name, \' \', ue.last_name) LIKE ? OR ue.username LIKE ?)';
+            $params[]   = "%{$buscar}%";
+            $params[]   = "%{$buscar}%";
+        }
+
+        $total = (int) Database::query(
+            "SELECT COUNT(*) AS total
              FROM traslados t
              JOIN depositos do ON t.deposito_origen_id = do.deposito_id
              JOIN depositos dd ON t.deposito_destino_id = dd.deposito_id
              LEFT JOIN users ue ON t.usuario_envia_id = ue.id
-             WHERE do.sucursal_id = ? OR dd.sucursal_id = ?
-             ORDER BY t.traslado_id DESC",
-            [$sucursalId, $sucursalId]
+             WHERE {$baseWhere}",
+            $params
+        )->fetch()['total'];
+
+        $traslados = Database::query(
+            "SELECT t.*,
+                    do.nombre AS origen_nombre,
+                    dd.nombre AS destino_nombre,
+                    CONCAT(ue.first_name, ' ', ue.last_name) AS usuario_envia_nombre
+             FROM traslados t
+             JOIN depositos do ON t.deposito_origen_id = do.deposito_id
+             JOIN depositos dd ON t.deposito_destino_id = dd.deposito_id
+             LEFT JOIN users ue ON t.usuario_envia_id = ue.id
+             WHERE {$baseWhere}
+             ORDER BY t.traslado_id DESC
+             LIMIT {$perPage} OFFSET {$offset}",
+            $params
         )->fetchAll();
 
+        $totalPages = max(1, (int) ceil($total / $perPage));
+
+        $stats = Database::query(
+            "SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN t.estado = 'en_transito' THEN 1 ELSE 0 END) AS en_transito,
+                SUM(CASE WHEN t.estado = 'recibido'    THEN 1 ELSE 0 END) AS recibidos,
+                SUM(CASE WHEN t.estado = 'cancelado'   THEN 1 ELSE 0 END) AS cancelados
+             FROM traslados t
+             JOIN depositos do ON t.deposito_origen_id = do.deposito_id
+             JOIN depositos dd ON t.deposito_destino_id = dd.deposito_id
+             WHERE do.sucursal_id = ? OR dd.sucursal_id = ?",
+            [$sucursalId, $sucursalId]
+        )->fetch();
+
         $this->view('traslados.index', [
-            'page_title' => 'Traslados entre Almacenes',
+            'page_title'    => 'Traslados entre Almacenes',
             'page_subtitle' => 'Mover mercancía de forma controlada',
-            'traslados' => $traslados
+            'traslados'     => $traslados,
+            'stats'         => $stats,
+            'buscar'        => $buscar,
+            'pagination'    => [
+                'total'         => $total,
+                'per_page'      => $perPage,
+                'current_page'  => $page,
+                'total_pages'   => $totalPages,
+                'has_previous'  => $page > 1,
+                'has_next'      => $page < $totalPages,
+                'previous_page' => max(1, $page - 1),
+                'next_page'     => min($totalPages, $page + 1),
+            ],
         ]);
     }
 

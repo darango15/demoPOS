@@ -20,19 +20,66 @@ class CompraController extends Controller
     public function index(): void
     {
         $sucursalId = $this->sucursalId();
-        $compras = Database::query(
-            "SELECT c.*, p.nombre as proveedor_nombre
+        $buscar     = trim($this->request->get('buscar', ''));
+        $perPage    = \in_array((int) $this->request->get('por_pagina', '25'), [10, 25, 50, 100], true)
+                        ? (int) $this->request->get('por_pagina', '25') : 25;
+        $page       = max(1, (int) $this->request->get('page', '1'));
+        $offset     = ($page - 1) * $perPage;
+
+        $where  = 'c.sucursal_id = ?';
+        $params = [$sucursalId];
+        if ($buscar !== '') {
+            $where   .= ' AND (c.numero_factura LIKE ? OR p.nombre LIKE ?)';
+            $params[] = "%{$buscar}%";
+            $params[] = "%{$buscar}%";
+        }
+
+        $total = (int) Database::query(
+            "SELECT COUNT(*) AS total
              FROM compras c
              JOIN proveedores p ON c.proveedor_id = p.proveedor_id
-             WHERE c.sucursal_id = ?
-             ORDER BY c.fecha_compra DESC",
-            [$sucursalId]
+             WHERE {$where}",
+            $params
+        )->fetch()['total'];
+
+        $compras = Database::query(
+            "SELECT c.*, p.nombre AS proveedor_nombre
+             FROM compras c
+             JOIN proveedores p ON c.proveedor_id = p.proveedor_id
+             WHERE {$where}
+             ORDER BY c.fecha_compra DESC
+             LIMIT {$perPage} OFFSET {$offset}",
+            $params
         )->fetchAll();
 
+        $totalPages = max(1, (int) ceil($total / $perPage));
+
+        $stats = Database::query(
+            "SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN estado IN ('pendiente','parcialmente_recibida') THEN 1 ELSE 0 END) AS pendientes,
+                SUM(CASE WHEN estado = 'recibida' THEN 1 ELSE 0 END)                             AS recibidas,
+                COALESCE(SUM(CASE WHEN estado = 'recibida' THEN monto_total ELSE 0 END), 0)       AS monto_recibido
+             FROM compras WHERE sucursal_id = ?",
+            [$sucursalId]
+        )->fetch();
+
         $this->view('compras.index', [
-            'page_title' => 'Gestión de Compras',
+            'page_title'    => 'Gestión de Compras',
             'page_subtitle' => 'Entradas de mercancía y facturas de proveedores',
-            'compras' => $compras
+            'compras'       => $compras,
+            'stats'         => $stats,
+            'buscar'        => $buscar,
+            'pagination'    => [
+                'total'         => $total,
+                'per_page'      => $perPage,
+                'current_page'  => $page,
+                'total_pages'   => $totalPages,
+                'has_previous'  => $page > 1,
+                'has_next'      => $page < $totalPages,
+                'previous_page' => max(1, $page - 1),
+                'next_page'     => min($totalPages, $page + 1),
+            ],
         ]);
     }
 
