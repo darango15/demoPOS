@@ -8,7 +8,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Technology Stack**: PHP 8.2, MySQL 8.0+, Vanilla JS (Tailwind CSS, Alpine.js via CDN)
 - **Only external dependency**: `vlucas/phpdotenv` (`composer.json`)
+- **PSR-4 autoload**: namespace `App\` maps to `src/`
 - **Entry Points**: `/public/index.php` (web), `/api/v1/*` (REST API)
+
+## Commands
+
+```bash
+composer install          # Install dependencies (only command needed)
+```
+
+There is no test suite, no PHPUnit, no static analysis (phpstan/phpcs), and no CI pipeline. Verification is manual via the browser or REST client.
 
 ## Architecture: Hexagonal + DDD
 
@@ -121,14 +130,27 @@ The HTTP layer (`src/Controllers/`, `src/Models/`, `src/Core/`) pre-dates the DD
 | `Auth` | Django-compatible PBKDF2 + bcrypt; `attempt()`, `check()`, `user()`, `isSuperuser()` |
 | `View` | PHP template engine with `extract($data)` and layout/section system |
 
-### Routing (`config/routes.php`)
+### Routing
 
-All routes defined here. Groups:
-- **Public**: `/login`, `/logout`, `/auth/2fa/*`
-- **Web** (session auth + `SucursalMiddleware`): 40+ routes across inventario, ventas/POS, clientes, reportes, usuarios, configuración, bitácora
-- **API** (`/api/v1/*`): 18 controllers, Bearer token auth, JSON only
+`config/routes.php` only defines public routes (`/login`, `/logout`, `/auth/2fa/*`, `/api/v1` status, `/api/v1/login`). All other routes are registered dynamically at bootstrap via `ModuleManager::loadRoutes($router)`, which requires each installed module's `modules/{name}/routes.php`.
 
 Route action: `[ControllerClass::class, 'methodName']` or closure.
+
+### Module System (`modules/`)
+
+Feature routing and sidebar menus are driven by modules. Each module is a directory under `modules/` containing:
+
+- **`manifest.php`** — returns an array with `label`, `version`, `depends`, `menu_order`, and `menu` (sidebar links)
+- **`routes.php`** — registers web and API routes directly against `$router` (injected by `ModuleManager`)
+
+`ModuleManager` (in `src/Core/ModuleManager.php`) reads installed modules from the `modules` DB table (`estado = 'instalado'`). If the table doesn't exist (first boot), it falls back to all five built-in modules: `core`, `inventario`, `ventas`, `clientes`, `reportes`.
+
+Key `ModuleManager` methods:
+- `loadRoutes(Router)` — loops installed modules, requires their `routes.php`
+- `getMenu()` — assembles sidebar from `core` manifest's `menu_top`/`menu_bottom` + all other installed modules' `menu` entries
+- `install($name)` / `uninstall($name)` — writes to `modules` table; enforces `depends` graph; `core` cannot be uninstalled
+
+To add a new feature area: create `modules/{name}/manifest.php` and `modules/{name}/routes.php`, then install via `ModuleManager::install()`.
 
 ### Web Controllers (`src/Controllers/`)
 
@@ -226,6 +248,7 @@ No build scripts, no package.json. Tailwind and Alpine.js loaded from CDN.
 | `traslados` | `deposito_origen_id`, `deposito_destino_id`, `estado` |
 | `inventario_movimientos` | Audit log; `tipo`: `entrada`/`salida`/`ajuste`/`traslado` |
 | `precios_productos` | Multi-tier pricing: tipo `A`, `B`, `C` |
+| `modules` | `name`, `estado` (`instalado`/`desinstalado`), `version`; drives `ModuleManager` |
 
 **Naming**: PHP classes = PascalCase; DB tables = snake_case plural; PKs = `tabla_id` pattern.
 

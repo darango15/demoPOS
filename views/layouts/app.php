@@ -48,7 +48,7 @@ function renderMenuItem(array $item, string $currentUri): string
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
-        body { font-family: "Inter", sans-serif; background: #f8fafc; }
+        body { font-family: "Inter", sans-serif; background: #e8f1fb; }
         .form-input, .form-select, .form-textarea { width:100%; padding:.5rem .75rem; border:1px solid #d1d5db; border-radius:.5rem; transition:all .2s; outline:none; }
         .form-input:focus, .form-select:focus, .form-textarea:focus { box-shadow:0 0 0 2px #0EA5E9; border-color:transparent; }
         .form-input:disabled, .form-select:disabled { background-color:#f3f4f6; cursor:not-allowed; }
@@ -65,7 +65,7 @@ function renderMenuItem(array $item, string $currentUri): string
     <?= View::yield('extra_css') ?>
 </head>
 
-<body class="min-h-screen bg-gray-50 flex">
+<body class="min-h-screen flex" style="background:#e8f1fb;">
 
     <!-- ══ SIDEBAR ══ -->
     <aside class="w-60 bg-white border-r border-gray-100 shadow-sm flex flex-col flex-shrink-0 overflow-y-auto z-40">
