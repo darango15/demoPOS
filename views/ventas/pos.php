@@ -123,7 +123,10 @@
                     </div>
                     <div>
                         <h1 class="text-sm font-black text-slate-800 uppercase tracking-tight leading-none"><?= View::e($empresa_actual['nombre_comercial'] ?? $empresa_actual['razon_social'] ?? 'Mi Empresa') ?></h1>
-                        <p class="text-[10px] text-pos font-bold uppercase tracking-widest mt-0.5"><i class="fas fa-map-marker-alt mr-1"></i>Sede Principal</p>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <p class="text-[10px] text-pos font-bold uppercase tracking-widest"><i class="fas fa-map-marker-alt mr-1"></i>Sede Principal</p>
+                            <span class="text-[9px] text-slate-400 font-mono bg-slate-100 rounded px-1 py-0.5">v<?= APP_VERSION ?></span>
+                        </div>
                     </div>
                 </div>
 
