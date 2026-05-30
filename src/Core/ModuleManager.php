@@ -147,11 +147,11 @@ class ModuleManager
         $bottom = $core['menu_bottom'] ?? [];
         $middle = [];
 
-        foreach (self::getInstalled() as $name) {
-            if ($name === 'core') {
-                continue;
-            }
-            $manifest = self::getManifest($name);
+        $names = array_filter(self::getInstalled(), fn($n) => $n !== 'core');
+        $manifests = array_map(fn($n) => self::getManifest($n), $names);
+        usort($manifests, fn($a, $b) => ($a['menu_order'] ?? 99) <=> ($b['menu_order'] ?? 99));
+
+        foreach ($manifests as $manifest) {
             if (!empty($manifest['menu'])) {
                 foreach ($manifest['menu'] as $item) {
                     $middle[] = $item;

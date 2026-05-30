@@ -9,7 +9,7 @@ return [
     'category'     => 'Ventas',
     'depends'      => ['core', 'inventario', 'clientes'],
     'auto_install' => false,
-    'menu_order'   => 10,
+    'menu_order'   => 5,
     'menu' => [
         ['type' => 'section', 'label' => 'Ventas'],
         ['type' => 'link', 'label' => 'Punto de Venta',    'icon' => 'fas fa-cash-register',  'href' => '/ventas/pos'],

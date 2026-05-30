@@ -17,7 +17,7 @@ class ClienteController extends Controller
         $buscar = $this->request->get('buscar', '');
         $estado = $this->request->get('estado', '');
         $tipo = $this->request->get('tipo', '');
-        $perPage = (int) ($_ENV['PAGINATION_PER_PAGE'] ?? 25);
+        $perPage = (int) ($this->request->get('por_pagina', $_ENV['PAGINATION_PER_PAGE'] ?? 25));
 
         $where = 'empresa_id = ?';
         $params = [$this->empresaId()];
@@ -49,6 +49,7 @@ class ClienteController extends Controller
             'buscar' => $buscar,
             'estado_filtro' => $estado,
             'tipo_filtro' => $tipo,
+            'por_pagina' => $perPage,
         ]);
     }
 

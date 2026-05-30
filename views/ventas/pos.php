@@ -609,7 +609,11 @@
             elementosDOM.contenedorCarrito.classList.remove('hidden');
             elementosDOM.contenedorBusqueda.classList.add('hidden');
             elementosDOM.txcodigo.value = '';
-            elementosDOM.txcodigo.focus();
+            setTimeout(() => {
+                const inp = document.getElementById('input-nueva-linea');
+                if (inp) inp.focus();
+                else elementosDOM.txcodigo.focus();
+            }, 30);
         }
 
         function agregarAlCarrito(p, tipo, precio, unidadId = null, presentacion = 'Unid.') {
@@ -636,53 +640,96 @@
         function actualizarTabla() {
             const tbody = document.getElementById('posTable');
             tbody.innerHTML = '';
-            
-            if (carrito.length === 0) {
-                tbody.innerHTML = `<tr id="sin-productos">
-                    <td colspan="8" class="px-4 py-8 text-center text-sm text-gray-500">
-                        <i class="fas fa-shopping-cart text-3xl text-gray-300 mb-2"></i>
-                        <p>No hay productos en el carrito</p>
-                        <p class="text-xs mt-2">Busque productos usando el campo de búsqueda superior</p>
+
+            carrito.forEach((item, i) => {
+                const tr = document.createElement('tr');
+                tr.className = "bg-white hover:bg-sky-50/40 transition receipt-font";
+                const descPct = item.descuento_pct || 0;
+                const descMonto = item.cantidad * item.precio * (descPct / 100);
+                const linea = (item.cantidad * item.precio) - descMonto;
+                tr.innerHTML = `
+                    <td class="px-4 py-3 text-sm text-gray-400">${i + 1}</td>
+                    <td class="px-4 py-3 text-sm font-mono text-gray-600">${item.codigo}</td>
+                    <td class="px-4 py-3">
+                        <div class="text-sm font-medium text-gray-900 line-clamp-1">${item.nombre}</div>
+                        <div class="text-xs text-gray-400 mt-0.5">${item.presentacion || 'Unid.'}</div>
                     </td>
-                </tr>`;
-                elementosDOM.itemCount.textContent = '0';
-            } else {
-                carrito.forEach((item, i) => {
-                    const tr = document.createElement('tr');
-                    tr.className = "hover:bg-gray-50 transition receipt-font";
-                    const descPct = item.descuento_pct || 0;
-                    const descMonto = item.cantidad * item.precio * (descPct / 100);
-                    const linea = (item.cantidad * item.precio) - descMonto;
-                    tr.innerHTML = `
-                        <td class="px-4 py-3 text-sm">${i + 1}</td>
-                        <td class="px-4 py-3 text-sm font-mono">${item.codigo}</td>
-                        <td class="px-4 py-3">
-                            <div class="text-sm font-medium text-gray-900 line-clamp-1">${item.nombre}</div>
-                            <div class="text-xs text-gray-500 mt-0.5">${item.presentacion || 'Unid.'}</div>
-                        </td>
-                        <td class="px-4 py-3 text-center">
-                            <input type="number" min="1" step="1" value="${item.cantidad}" class="w-16 text-center border border-gray-300 rounded text-sm py-1 focus:outline-none focus:border-pos" onchange="cambiarCantidad(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
-                        </td>
-                        <td class="px-4 py-3 text-right text-sm">
-                            <input type="number" step="0.01" min="0" value="${item.precio.toFixed(2)}" class="w-20 text-right border border-gray-300 rounded text-sm py-1 focus:outline-none focus:border-pos bg-gray-50" onchange="cambiarPrecio(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
-                        </td>
-                        <td class="px-4 py-3 text-center">
-                            <div class="relative inline-flex items-center">
-                                <input type="number" step="0.5" min="0" max="${MAX_DESCUENTO_PCT}" value="${descPct.toFixed(1)}" class="w-16 text-center border border-amber-200 rounded text-sm py-1 focus:outline-none focus:border-amber-400 bg-amber-50 text-amber-700 font-semibold pr-4" onchange="cambiarDescuento(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
-                                <span class="absolute right-1.5 text-xs text-amber-500 pointer-events-none font-bold">%</span>
-                            </div>
-                        </td>
-                        <td class="px-4 py-3 text-right text-sm font-bold">$${linea.toFixed(2)}</td>
-                        <td class="px-4 py-3 text-center">
-                            <button onclick="eliminar(${i})" class="w-8 h-8 rounded text-gray-400 hover:text-red-500 transition-colors bg-white hover:bg-red-50"><i class="fas fa-trash"></i></button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-                elementosDOM.itemCount.textContent = carrito.length;
-            }
+                    <td class="px-4 py-3 text-center">
+                        <input type="number" min="1" step="1" value="${item.cantidad}" class="w-16 text-center border border-gray-300 rounded text-sm py-1 focus:outline-none focus:border-pos" onchange="cambiarCantidad(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
+                    </td>
+                    <td class="px-4 py-3 text-right text-sm">
+                        <input type="number" step="0.01" min="0" value="${item.precio.toFixed(2)}" class="w-20 text-right border border-gray-300 rounded text-sm py-1 focus:outline-none focus:border-pos bg-gray-50" onchange="cambiarPrecio(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <div class="relative inline-flex items-center">
+                            <input type="number" step="0.5" min="0" max="${MAX_DESCUENTO_PCT}" value="${descPct.toFixed(1)}" class="w-16 text-center border border-amber-200 rounded text-sm py-1 focus:outline-none focus:border-amber-400 bg-amber-50 text-amber-700 font-semibold pr-4" onchange="cambiarDescuento(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
+                            <span class="absolute right-1.5 text-xs text-amber-500 pointer-events-none font-bold">%</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 text-right text-sm font-bold text-gray-800">$${linea.toFixed(2)}</td>
+                    <td class="px-4 py-3 text-center">
+                        <button onclick="eliminar(${i})" class="w-8 h-8 rounded text-gray-300 hover:text-red-500 transition-colors bg-white hover:bg-red-50"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Fila de entrada de código — siempre visible al final
+            const trNueva = document.createElement('tr');
+            trNueva.id = 'fila-nueva-linea';
+            trNueva.className = 'bg-white';
+            trNueva.innerHTML = `
+                <td class="px-4 py-2 text-xs text-gray-300">${carrito.length + 1}</td>
+                <td class="px-4 py-2">
+                    <input type="text" id="input-nueva-linea"
+                        placeholder="Código..."
+                        autocomplete="off"
+                        class="w-28 border-b border-dashed border-gray-300 text-sm font-mono text-gray-700 focus:outline-none focus:border-pos py-1 bg-transparent placeholder-gray-300">
+                </td>
+                <td colspan="6" class="px-4 py-2 text-xs text-gray-300 italic">Escriba un código y presione Enter para agregar</td>
+            `;
+            tbody.appendChild(trNueva);
+
+            document.getElementById('input-nueva-linea').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    agregarPorCodigo(this.value);
+                }
+            });
+
+            elementosDOM.itemCount.textContent = carrito.length;
             actualizarTotales();
             guardarCarritoLocal();
+        }
+
+        function agregarPorCodigo(codigo) {
+            const q = (codigo || '').trim();
+            if (!q) return;
+            fetch(`/api/productos/buscar?q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(data => {
+                    const productos = data.productos || [];
+                    if (productos.length === 1) {
+                        const p = productos[0];
+                        const pr = parseFloat(p.precio_a) || 0;
+                        agregarAlCarrito(p, 'a', pr, null, 'Unid.');
+                        setTimeout(() => {
+                            const inp = document.getElementById('input-nueva-linea');
+                            if (inp) { inp.value = ''; inp.focus(); }
+                        }, 30);
+                    } else if (productos.length > 1) {
+                        resultadosBusqueda = productos;
+                        paginaActual = 1;
+                        mostrarResultados();
+                    } else {
+                        toast('Producto no encontrado: ' + q, 'info');
+                        setTimeout(() => {
+                            const inp = document.getElementById('input-nueva-linea');
+                            if (inp) inp.select();
+                        }, 30);
+                    }
+                })
+                .catch(() => toast('Error al buscar producto', 'error'));
         }
 
         function cambiarCantidad(i, v) {

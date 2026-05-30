@@ -146,8 +146,8 @@ Feature routing and sidebar menus are driven by modules. Each module is a direct
 `ModuleManager` (in `src/Core/ModuleManager.php`) reads installed modules from the `modules` DB table (`estado = 'instalado'`). If the table doesn't exist (first boot), it falls back to all five built-in modules: `core`, `inventario`, `ventas`, `clientes`, `reportes`.
 
 Key `ModuleManager` methods:
-- `loadRoutes(Router)` — loops installed modules, requires their `routes.php`
-- `getMenu()` — assembles sidebar from `core` manifest's `menu_top`/`menu_bottom` + all other installed modules' `menu` entries
+- `loadRoutes(Router)` — iterates installed modules **in DB `id` order** (insertion order), requires their `routes.php`. This matters for wildcard route conflicts.
+- `getMenu()` — assembles sidebar from `core` manifest's `menu_top`/`menu_bottom` + all other installed modules' `menu` entries, **sorted by `menu_order`** from each manifest.
 - `install($name)` / `uninstall($name)` — writes to `modules` table; enforces `depends` graph; `core` cannot be uninstalled
 
 To add a new feature area: create `modules/{name}/manifest.php` and `modules/{name}/routes.php`, then install via `ModuleManager::install()`.
@@ -187,6 +187,34 @@ View::e($value)                         // htmlspecialchars escape
 View::csrf()                            // CSRF hidden input
 View::isActive('/inventario/*')         // Active nav check
 View::include('partials.search', $data) // Include partial
+```
+
+**Standard list view pattern** — all list views follow the same structure for consistency:
+1. **4 stat cards** — `border-l-4` colored borders (sky/emerald/amber or gray/violet); sourced from a `getStats()` model method passed as `$stats`
+2. **Filter bar** — debounce search (500ms, fires at ≥2 chars or empty), dropdowns with `onchange="this.form.submit()"`, per-page selector (10/25/50/100), result count + clear link to the right, primary action button
+3. **Table header row** — "Ordenado por X" left, "Pág. N / N" right
+4. **Table body** — `group` on `<tr>`, `hover:bg-sky-50/40`, icon avatar `w-8 h-8 rounded-lg bg-*-50`, action icons with `opacity-60 group-hover:opacity-100`
+5. **State badges** — `bg-*-50 text-*-700 border border-*-100` (always include explicit `border`)
+6. **Pagination** — outside and below the table `<div>`; use `View::include('partials.pagination', ['pagination' => $pagination])`
+7. **JS** — debounce and any Alpine components go in `View::section('extra_js')`, never inline in `<head>`
+
+**Alpine.js pitfall** — never put Alpine component data with `>` characters directly in an HTML attribute (`x-data="{ fn: x => x > 0 }"`). The `>` terminates the attribute and breaks parsing. Use the **named function pattern** instead:
+
+```php
+// In the template:
+<div x-data="myComponent()">...</div>
+
+// In View::section('extra_js'):
+<script>
+function myComponent() {
+    return {
+        get filtered() {
+            // Safe to use > here; also use function() not arrow functions
+            return this.items.filter(function(i) { return i.qty > 0; });
+        }
+    };
+}
+</script>
 ```
 
 ### Authentication
@@ -240,7 +268,7 @@ No build scripts, no package.json. Tailwind and Alpine.js loaded from CDN.
 | `productos` (producto_id) | `empresa_id`, `categoria_id`, `codigo_barras`, `costo`, `itbms`, `estado` |
 | `inventario` | Stock by `(producto_id, deposito_id)`; `existencia`, `costo_promedio`, `minimo` |
 | `categorias_productos` | Self-referential `padre_id` for hierarchy |
-| `clientes` (cliente_id) | `limite_credito`, `saldo`, `dias_credito` |
+| `clientes` (cliente_id) | `limite_credito`, `saldo`, `saldo_pendiente`, `dias_credito` — **note**: `saldo` and `saldo_pendiente` are separate fields; `getStats()` aggregates `saldo_pendiente`, but list views display `saldo` |
 | `ventas` (venta_id) | `numero_factura`, `subtotal`, `itbms`, `forma_pago`, `estado` |
 | `ventas_detalle` | `venta_id`, `producto_id`, `cantidad`, `precio` |
 | `compras` (compra_id) | `estado`: `pendiente`/`recibida`/`cancelada` |
