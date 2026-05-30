@@ -309,6 +309,60 @@ class CotizacionController extends Controller
         }
     }
 
+    public function pendientesPos(): void
+    {
+        $q = $this->request->get('q', '');
+        $params = [$this->sucursalId()];
+        $where = "co.sucursal_id = ? AND co.estado IN ('pendiente', 'aprobada')";
+
+        if ($q) {
+            $where .= " AND (co.numero LIKE ? OR c.nombre LIKE ?)";
+            $params[] = "%{$q}%";
+            $params[] = "%{$q}%";
+        }
+
+        $cotizaciones = Database::query(
+            "SELECT co.cotizacion_id, co.numero, co.fecha, co.total, co.estado, co.fecha_vencimiento,
+                    COALESCE(c.nombre, 'Consumidor Final') as cliente_nombre
+             FROM cotizaciones co
+             LEFT JOIN clientes c ON co.cliente_id = c.cliente_id
+             WHERE {$where}
+             ORDER BY co.fecha DESC
+             LIMIT 40",
+            $params
+        )->fetchAll();
+
+        $this->json(['cotizaciones' => $cotizaciones]);
+    }
+
+    public function itemsPos(int $cotizacion_id): void
+    {
+        $cotizacion = Database::query(
+            "SELECT co.cotizacion_id, co.numero, co.cliente_id, co.estado,
+                    COALESCE(c.nombre, 'Consumidor Final') as cliente_nombre
+             FROM cotizaciones co
+             LEFT JOIN clientes c ON co.cliente_id = c.cliente_id
+             WHERE co.cotizacion_id = ? AND co.sucursal_id = ?",
+            [$cotizacion_id, $this->sucursalId()]
+        )->fetch();
+
+        if (!$cotizacion) {
+            $this->json(['error' => 'No encontrada'], 404);
+            return;
+        }
+
+        $items = Database::query(
+            "SELECT d.producto_id, d.cantidad, d.precio, d.descuento,
+                    p.codigo, p.nombre, p.itbms as aplica_itbms
+             FROM cotizaciones_detalle d
+             JOIN productos p ON p.producto_id = d.producto_id
+             WHERE d.cotizacion_id = ?",
+            [$cotizacion_id]
+        )->fetchAll();
+
+        $this->json(['cotizacion' => $cotizacion, 'items' => $items]);
+    }
+
     public function cambiarEstado(int $cotizacion_id): void
     {
         if (!$this->verifyCsrf()) return;

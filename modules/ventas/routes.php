@@ -31,7 +31,9 @@ $router->group([
     $r->get('/ventas/cotizaciones',                            [CotizacionController::class, 'index']);
     $r->get('/ventas/cotizaciones/nueva',                      [CotizacionController::class, 'crear']);
     $r->post('/ventas/cotizaciones/guardar',                   [CotizacionController::class, 'guardar']);
+    $r->get('/ventas/cotizaciones/pos/pendientes',             [CotizacionController::class, 'pendientesPos']);
     $r->get('/ventas/cotizaciones/{cotizacion_id}',            [CotizacionController::class, 'detalle']);
+    $r->get('/ventas/cotizaciones/{cotizacion_id}/items-pos',  [CotizacionController::class, 'itemsPos']);
     $r->post('/ventas/cotizaciones/{cotizacion_id}/convertir', [CotizacionController::class, 'convertir']);
     $r->post('/ventas/cotizaciones/{cotizacion_id}/estado',    [CotizacionController::class, 'cambiarEstado']);
 });

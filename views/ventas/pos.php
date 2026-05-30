@@ -135,15 +135,52 @@
                     </div>
                     <div class="h-8 w-[1px] bg-gray-200"></div>
                     <nav class="flex items-center space-x-2">
-                        <a href="/inventario" class="flex items-center px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-pos hover:bg-blue-50 rounded-lg transition-all group">
-                            <i class="fas fa-boxes mr-2 text-slate-400 group-hover:text-pos"></i>Inventario
-                        </a>
-                        <a href="/clientes" class="flex items-center px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-pos hover:bg-blue-50 rounded-lg transition-all group">
-                            <i class="fas fa-users mr-2 text-slate-400 group-hover:text-pos"></i>Clientes
-                        </a>
-                        <a href="/ventas" class="flex items-center px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-pos hover:bg-blue-50 rounded-lg transition-all group">
-                            <i class="fas fa-list-ul mr-2 text-slate-400 group-hover:text-pos"></i>Ventas
-                        </a>
+                        <!-- Panel de cotizaciones activas -->
+                        <div class="relative">
+                            <button id="btn-cotizaciones"
+                                class="flex items-center px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-all group">
+                                <i class="fas fa-file-invoice-dollar mr-2 text-slate-400 group-hover:text-amber-500"></i>
+                                Cotizaciones
+                                <span id="badge-cotizaciones"
+                                    class="ml-1.5 bg-amber-400 text-white text-[10px] font-black rounded-full px-1.5 py-0.5 leading-none hidden">0</span>
+                            </button>
+
+                            <!-- Dropdown panel -->
+                            <div id="panel-cotizaciones"
+                                class="hidden absolute top-full mt-2 left-0 w-[420px] bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
+
+                                <!-- Cabecera -->
+                                <div class="px-4 py-3 bg-amber-50 border-b border-amber-100 flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fas fa-file-invoice-dollar text-amber-500 text-sm"></i>
+                                        <span class="text-sm font-bold text-amber-800">Cotizaciones Activas</span>
+                                    </div>
+                                    <a href="/ventas/cotizaciones" target="_blank"
+                                        class="text-[10px] font-semibold text-amber-600 hover:text-amber-800 hover:underline">
+                                        Ver todas →
+                                    </a>
+                                </div>
+
+                                <!-- Buscador -->
+                                <div class="px-3 py-2 border-b border-gray-100">
+                                    <div class="relative">
+                                        <i class="fas fa-search absolute left-2.5 top-2 text-gray-300 text-xs"></i>
+                                        <input type="text" id="buscar-cotizacion"
+                                            placeholder="Número o nombre de cliente..."
+                                            autocomplete="off"
+                                            class="w-full pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-200 bg-gray-50">
+                                    </div>
+                                </div>
+
+                                <!-- Lista -->
+                                <div id="lista-cotizaciones" class="max-h-72 overflow-y-auto divide-y divide-gray-50">
+                                    <div class="px-4 py-6 text-center text-xs text-gray-400">
+                                        <i class="fas fa-spinner fa-spin mr-1"></i> Cargando...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <a href="/configuracion" class="flex items-center px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-all group" title="Configurar descuentos POS">
                             <i class="fas fa-cog mr-2 text-slate-400 group-hover:text-amber-500"></i>Configuración
                         </a>
@@ -915,6 +952,139 @@
         document.getElementById('modal-nuevo-cliente').addEventListener('keydown', function(e) {
             if (e.key === 'Enter') guardarNuevoCliente();
         });
+
+        /* ── Panel de cotizaciones activas ── */
+        var panelCotizacionesAbierto = false;
+        var cotizacionesCache = null;
+        var buscarCotizacionTimer = null;
+
+        document.getElementById('btn-cotizaciones').addEventListener('click', function(e) {
+            e.stopPropagation();
+            togglePanelCotizaciones();
+        });
+
+        function togglePanelCotizaciones() {
+            panelCotizacionesAbierto = !panelCotizacionesAbierto;
+            var panel = document.getElementById('panel-cotizaciones');
+            if (panelCotizacionesAbierto) {
+                panel.classList.remove('hidden');
+                if (!cotizacionesCache) cargarCotizacionesPendientes('');
+                setTimeout(function() { document.getElementById('buscar-cotizacion').focus(); }, 80);
+            } else {
+                panel.classList.add('hidden');
+            }
+        }
+
+        function cerrarPanelCotizaciones() {
+            panelCotizacionesAbierto = false;
+            document.getElementById('panel-cotizaciones').classList.add('hidden');
+        }
+
+        document.addEventListener('click', function(e) {
+            if (!document.getElementById('panel-cotizaciones').contains(e.target) &&
+                e.target !== document.getElementById('btn-cotizaciones')) {
+                cerrarPanelCotizaciones();
+            }
+        });
+
+        document.getElementById('buscar-cotizacion').addEventListener('input', function() {
+            clearTimeout(buscarCotizacionTimer);
+            var q = this.value.trim();
+            buscarCotizacionTimer = setTimeout(function() {
+                cotizacionesCache = null;
+                cargarCotizacionesPendientes(q);
+            }, 350);
+        });
+
+        function cargarCotizacionesPendientes(q) {
+            var lista = document.getElementById('lista-cotizaciones');
+            lista.innerHTML = '<div class="px-4 py-6 text-center text-xs text-gray-400"><i class="fas fa-spinner fa-spin mr-1"></i> Cargando...</div>';
+            fetch('/ventas/cotizaciones/pos/pendientes?q=' + encodeURIComponent(q))
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    cotizacionesCache = data.cotizaciones || [];
+                    renderizarCotizaciones(cotizacionesCache);
+                })
+                .catch(function() {
+                    lista.innerHTML = '<div class="px-4 py-4 text-center text-xs text-red-400">Error al cargar cotizaciones</div>';
+                });
+        }
+
+        function renderizarCotizaciones(lista) {
+            var cont = document.getElementById('lista-cotizaciones');
+            var badge = document.getElementById('badge-cotizaciones');
+
+            badge.textContent = lista.length;
+            if (lista.length > 0) badge.classList.remove('hidden');
+            else badge.classList.add('hidden');
+
+            if (lista.length === 0) {
+                cont.innerHTML = '<div class="px-4 py-8 text-center"><i class="fas fa-file-invoice text-2xl text-gray-200 mb-2 block"></i><p class="text-xs text-gray-400">No hay cotizaciones activas</p></div>';
+                return;
+            }
+
+            cont.innerHTML = '';
+            lista.forEach(function(c) {
+                var fechaStr = c.fecha ? c.fecha.substring(0, 10) : '';
+                var estadoBadge = c.estado === 'aprobada'
+                    ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">Aprobada</span>'
+                    : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100">Pendiente</span>';
+
+                var div = document.createElement('div');
+                div.className = 'flex items-center gap-3 px-4 py-2.5 hover:bg-amber-50/60 transition-colors';
+                div.innerHTML = `
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-black text-gray-800 font-mono">${c.numero}</span>
+                            ${estadoBadge}
+                        </div>
+                        <p class="text-[11px] text-gray-500 truncate mt-0.5">${c.cliente_nombre}</p>
+                        <p class="text-[10px] text-gray-300 mt-0.5">${fechaStr}</p>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <p class="text-sm font-bold text-gray-800">$${parseFloat(c.total).toFixed(2)}</p>
+                        <button onclick="cargarCotizacionAlCarrito(${c.cotizacion_id}, '${c.numero}')"
+                            class="mt-1 px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold rounded-lg transition-colors">
+                            <i class="fas fa-cart-plus mr-1"></i>Cargar
+                        </button>
+                    </div>
+                `;
+                cont.appendChild(div);
+            });
+        }
+
+        async function cargarCotizacionAlCarrito(id, numero) {
+            if (carrito.length > 0) {
+                if (!confirm('¿Reemplazar el carrito actual con la cotización ' + numero + '?')) return;
+            }
+            try {
+                const r = await fetch('/ventas/cotizaciones/' + id + '/items-pos');
+                const data = await r.json();
+                if (!data.items || data.items.length === 0) {
+                    toast('La cotización no tiene items', 'info');
+                    return;
+                }
+                carrito = data.items.map(function(item) {
+                    return {
+                        id:           item.producto_id,
+                        codigo:       item.codigo,
+                        nombre:       item.nombre,
+                        precio:       parseFloat(item.precio),
+                        tipo:         'a',
+                        cantidad:     parseFloat(item.cantidad),
+                        descuento_pct: 0,
+                        unidad_id:    null,
+                        presentacion: 'Unid.',
+                        aplica_itbms: item.aplica_itbms == 1
+                    };
+                });
+                actualizarTabla();
+                cerrarPanelCotizaciones();
+                toast('Cotización ' + numero + ' cargada en el carrito', 'success');
+            } catch(e) {
+                toast('Error al cargar la cotización', 'error');
+            }
+        }
     </script>
 </body>
 </html>
