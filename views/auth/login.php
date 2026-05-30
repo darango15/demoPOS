@@ -67,6 +67,7 @@
 
             <p class="text-center text-sm text-gray-500">
                 Distribuidora Arango &copy; <?= date('Y') ?>
+                <span class="inline-block ml-2 text-[11px] text-gray-600 bg-white/10 border border-white/10 rounded-full px-2 py-0.5 font-mono">v<?= APP_VERSION ?></span>
             </p>
         </div>
     </div>

@@ -81,6 +81,7 @@ function renderMenuItem(array $item, string $currentUri): string
                     <?php if (!empty($sucursal_actual)): ?>
                     <p class="text-xs text-gray-400 leading-none"><?= View::e($sucursal_actual['nombre']) ?></p>
                     <?php endif; ?>
+                    <p class="text-[10px] text-gray-300 font-mono leading-none mt-0.5">v<?= APP_VERSION ?></p>
                 </div>
             </div>
         </div>

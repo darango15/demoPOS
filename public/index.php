@@ -5,6 +5,7 @@
  */
 
 define('BASE_PATH', dirname(__DIR__));
+define('APP_VERSION', '1.0.0');
 
 // Autoload de Composer
 require_once BASE_PATH . '/vendor/autoload.php';
