@@ -353,7 +353,7 @@
                         </div>
                         <div class="flex justify-between items-center">
                             <span class="text-sm text-gray-600">
-                                <input type="checkbox" id="aplicar_itbms" class="mr-2"> ITBMS (7%)
+                                <input type="checkbox" id="aplicar_itbms" class="mr-2" checked> ITBMS (7%)
                             </span>
                             <span id="itbms" class="text-sm font-bold text-green-600">$0.00</span>
                         </div>
