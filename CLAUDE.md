@@ -42,7 +42,7 @@ src/
 ├── Controllers/               # HTTP entry points (call ServiceFactory for use cases)
 ├── Models/                    # Legacy Active Record (used outside DDD domains)
 ├── Middleware/                 # Auth, Sucursal, feature access
-└── Services/                  # Cross-cutting services (Audit, Totp, Alertas, OrdenCompra)
+└── Services/                  # Cross-cutting services (Audit, Totp, Alertas, OrdenCompra, SmartInsight, SimpleXlsxWriter)
 ```
 
 ### Domain Layer (Hexagon Core)
@@ -124,10 +124,12 @@ The HTTP layer (`src/Controllers/`, `src/Models/`, `src/Core/`) pre-dates the DD
 | `Application` | Bootstrap singleton; security headers, CORS, runs router |
 | `Router` | `{id}` → `(?P<id>[0-9]+)` patterns; route groups; middleware |
 | `Request` | HTTP abstraction; strips `/backend` or `/backend/public` URL prefixes |
+| `Response` | Static helpers: `redirect()`, `back()`, `json()`, `notFound()` |
+| `Session` | Wraps `$_SESSION`; `get()`, `set()`, `flash()`, `verifyCsrf()` |
 | `Controller` | Base: `view()`, `empresaId()`, `sucursalId()`, `requirePermission()`, flash messages |
-| `Model` | Active Record: `find()`, `all()`, `where()`, `create()`, `update()`, `delete()`, `paginate()` |
+| `Model` | Active Record implementing `ArrayAccess`; `find()`, `all()`, `where()`, `create()`, `update()`, `delete()`, `paginate()` |
 | `Database` | PDO singleton; `query($sql, $params)` with `?` placeholders; server-side prepared statements |
-| `Auth` | Django-compatible PBKDF2 + bcrypt; `attempt()`, `check()`, `user()`, `isSuperuser()` |
+| `Auth` | Django-compatible PBKDF2 + bcrypt; `attempt()`, `check()`, `user()`, `isSuperuser()`, `can($permiso)` |
 | `View` | PHP template engine with `extract($data)` and layout/section system |
 
 ### Routing
@@ -164,12 +166,23 @@ $this->view('inventario.lista', $data);   // → views/inventario/lista.php
 $this->empresaId();    // Current company ID from session
 $this->sucursalId();   // Current branch ID from session
 
-// Flash messages:
-$this->success('Guardado');   $this->error('Error');
-$this->warning('Atención');   $this->info('Info');
+// Flash messages (key used in templates):
+$this->success('Guardado');   // → flash key 'success'
+$this->error('Error');        // → flash key 'danger' (NOT 'error')
+$this->warning('Atención');   // → flash key 'warning'
+$this->info('Info');          // → flash key 'info'
+
+// Security helpers:
+$this->verifyCsrf();          // verifies POST _csrf_token; call at start of every POST handler
+$this->requirePermission('ventas.anular');  // aborts with 403 if Auth::can() fails; returns bool
+
+// File upload helper (validates MIME via magic bytes, randomises filename):
+$path = $this->handleUpload('imagen', 'productos'); // returns relative path or null
 ```
 
 Controllers calling domain use cases do so via `ServiceFactory::get*UseCase()`.
+
+**Mini-API web routes** — the `ventas` module registers JSON-returning routes under `/api/productos/*` and `/api/depositos` that go through `AuthMiddleware` + `SucursalMiddleware` (session auth), **not** Bearer token. These are web routes used by the POS frontend, not part of `/api/v1`. Do not add them to `ApiController` subclasses.
 
 ### API Controllers (`src/Controllers/Api/`)
 
@@ -230,6 +243,17 @@ function myComponent() {
 - `BaseModuleMiddleware`, `InventarioModuleMiddleware`, `VentasModuleMiddleware` — feature access
 - `TenantMiddleware`, `SaaSLimitMiddleware` — exist but unused
 
+### Cross-Cutting Services (`src/Services/`)
+
+| Service | Usage |
+|---------|-------|
+| `AuditService::log($accion, $desc, $refId, $refTipo)` | Writes to `audit_log`; action format `modulo.evento` (e.g. `ventas.anular`); never throws — silently ignores errors |
+| `AlertaInventarioService->regenerar()` | On-demand; deletes active alerts then regenerates: stock mínimo, exceso, vencimiento, lotes vencidos, rotación lenta |
+| `OrdenCompraAutoService->regenerar()` | On-demand; deletes pending suggestions then recreates from reorder point + 30-day demand coverage |
+| `SmartInsightService::generateInsights($empresaId)` | Dashboard AI-style cards: stock depletion predictions, VIP client growth, slow rotation |
+| `SimpleXlsxWriter` | Lightweight XLSX export; used by `ProductoController` and `ReporteController` — returns a downloadable file via `header()` + `readfile()` |
+| `TotpService` | TOTP 2FA for roles in `ROLES_2FA` |
+
 ---
 
 ## Setup & Environment
@@ -276,6 +300,11 @@ No build scripts, no package.json. Tailwind and Alpine.js loaded from CDN.
 | `traslados` | `deposito_origen_id`, `deposito_destino_id`, `estado` |
 | `inventario_movimientos` | Audit log; `tipo`: `entrada`/`salida`/`ajuste`/`traslado` |
 | `precios_productos` | Multi-tier pricing: tipo `A`, `B`, `C` |
+| `lotes` | Lot/batch management; linked to `productos` where `maneja_lotes = 1`; tracks `fecha_vencimiento`, `cantidad` |
+| `inventario_conteos` | Physical inventory count sessions per deposito; workflow: `abierto` → `en_proceso` → `cerrado` |
+| `alertas_inventario` | Generated on-demand by `AlertaInventarioService`; `estado`: `activa`/`resuelta` |
+| `ordenes_compra_sugeridas` | Auto purchase order suggestions; `estado`: `pendiente`/`procesada`/`descartada` |
+| `audit_log` | Written by `AuditService`; `accion`, `modulo`, `referencia_id`, `referencia_tipo`, `datos` (JSON) |
 | `modules` | `name`, `estado` (`instalado`/`desinstalado`), `version`; drives `ModuleManager` |
 
 **Naming**: PHP classes = PascalCase; DB tables = snake_case plural; PKs = `tabla_id` pattern.
@@ -291,3 +320,7 @@ No build scripts, no package.json. Tailwind and Alpine.js loaded from CDN.
 5. **URL prefix stripping**: `Request::uri()` strips `/backend` or `/backend/public` — account for this in deployment.
 6. **Domain boundary**: Use cases must not import from `src/Core/`, `src/Controllers/`, or `src/Models/`. Keep domain pure.
 7. **ITBMS (tax)**: 7% Panama sales tax stored on both product records and sale records. Configurable via `ITBMS_RATE`.
+8. **Flash key 'danger'**: `$this->error()` stores under key `'danger'`, not `'error'`. Templates and layouts must check `$flash['danger']` — using `'error'` silently shows nothing.
+9. **CSRF on every POST**: Call `$this->verifyCsrf()` at the top of every web POST handler. Views must include `View::csrf()` inside `<form>` tags.
+10. **Lot-tracked products**: When `productos.maneja_lotes = 1`, stock changes must go through `LoteController` / `lotes` table — do not write directly to `inventario.existencia`.
+11. **Model implements ArrayAccess**: Legacy `Model` rows support both `$obj->campo` and `$obj['campo']` access — templates often use array syntax.
