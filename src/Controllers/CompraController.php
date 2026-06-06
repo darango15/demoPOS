@@ -317,6 +317,19 @@ class CompraController extends Controller
                     'fecha_fabricacion' => !empty($item['fecha_fabricacion']) ? $item['fecha_fabricacion'] : null,
                 ]);
 
+                // Actualizar precios de venta A, B, C si vienen en el item
+                foreach (['a' => 'precio_a', 'b' => 'precio_b', 'c' => 'precio_c'] as $tipo => $campo) {
+                    $precio = (float)($item[$campo] ?? 0);
+                    if ($precio > 0) {
+                        Database::query(
+                            "INSERT INTO precios_productos (producto_id, tipo_precio, precio, fecha_inicio)
+                             VALUES (?, ?, ?, CURDATE())
+                             ON DUPLICATE KEY UPDATE precio = VALUES(precio), fecha_inicio = VALUES(fecha_inicio)",
+                            [$productoId, $tipo, $precio]
+                        );
+                    }
+                }
+
                 if (!$esPendiente) {
                     $this->recibirLinea(
                         productoId:   $productoId,

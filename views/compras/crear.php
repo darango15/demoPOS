@@ -149,8 +149,10 @@
                                 <th class="py-2.5 pr-4 text-left text-xs font-semibold text-gray-500">Producto</th>
                                 <th class="py-2.5 px-3 text-center text-xs font-semibold text-gray-500 w-24">Cantidad</th>
                                 <th class="py-2.5 px-3 text-center text-xs font-semibold text-gray-500 w-28">Costo Unit.</th>
-                                <th class="py-2.5 px-3 text-center text-xs font-semibold text-gray-500 w-24">Margen %</th>
-                                <th class="py-2.5 px-3 text-center text-xs font-semibold text-gray-500 w-24">P. Venta</th>
+                                <th class="py-2.5 px-3 text-center text-xs font-semibold text-emerald-500 w-20">Margen %</th>
+                                <th class="py-2.5 px-3 text-center text-xs font-semibold text-sky-500 w-24">Precio 1</th>
+                                <th class="py-2.5 px-3 text-center text-xs font-semibold text-emerald-500 w-24">Precio 2</th>
+                                <th class="py-2.5 px-3 text-center text-xs font-semibold text-violet-500 w-24">Precio 3</th>
                                 <th class="py-2.5 px-3 text-center text-xs font-semibold text-gray-500">Depósito</th>
                                 <th class="py-2.5 pl-3 text-right text-xs font-semibold text-gray-500 w-24">Importe</th>
                                 <th class="w-8"></th>
@@ -168,19 +170,27 @@
                                             class="w-20 text-center text-sm py-1 bg-gray-50 rounded border-gray-200 focus:border-sky-400 focus:ring-0">
                                     </td>
                                     <td class="py-3 px-3 text-center">
-                                        <input type="number" step="0.0001" x-model.number="item.costo" @input="updateTotals()"
+                                        <input type="number" step="0.0001" x-model.number="item.costo" @input="recalcPrecioA(item); updateTotals()"
                                             class="w-24 text-center text-sm py-1 bg-gray-50 rounded border-gray-200 focus:border-sky-400 focus:ring-0 font-semibold text-sky-600">
                                     </td>
                                     <td class="py-3 px-3 text-center">
                                         <div class="relative inline-flex items-center">
-                                            <input type="number" step="0.1" min="0" x-model.number="item.margen_pct" @input="updateTotals()"
-                                                class="w-20 text-center text-sm py-1 bg-emerald-50 rounded border-emerald-200 focus:border-emerald-400 focus:ring-0 font-semibold text-emerald-700 pr-5">
-                                            <span class="absolute right-2 text-xs text-emerald-500 pointer-events-none font-bold">%</span>
+                                            <input type="number" step="0.1" min="0" x-model.number="item.margen_pct" @input="recalcPrecioA(item)"
+                                                class="w-16 text-center text-sm py-1 bg-emerald-50 rounded border-emerald-200 focus:border-emerald-400 focus:ring-0 font-semibold text-emerald-700 pr-4">
+                                            <span class="absolute right-1.5 text-xs text-emerald-500 pointer-events-none font-bold">%</span>
                                         </div>
                                     </td>
                                     <td class="py-3 px-3 text-center">
-                                        <span class="text-sm font-semibold text-gray-700" x-text="'$' + precioVenta(item).toFixed(2)"></span>
-                                        <div class="text-[10px] text-gray-400" x-show="item.margen_pct > 0" x-text="'(' + item.margen_pct + '%)'"></div>
+                                        <input type="number" step="0.01" min="0" x-model.number="item.precio_a"
+                                            class="w-22 text-center text-sm py-1 bg-sky-50 rounded border-sky-200 focus:border-sky-400 focus:ring-0 font-semibold text-sky-700">
+                                    </td>
+                                    <td class="py-3 px-3 text-center">
+                                        <input type="number" step="0.01" min="0" x-model.number="item.precio_b"
+                                            class="w-22 text-center text-sm py-1 bg-emerald-50 rounded border-emerald-200 focus:border-emerald-400 focus:ring-0 font-semibold text-emerald-700">
+                                    </td>
+                                    <td class="py-3 px-3 text-center">
+                                        <input type="number" step="0.01" min="0" x-model.number="item.precio_c"
+                                            class="w-22 text-center text-sm py-1 bg-violet-50 rounded border-violet-200 focus:border-violet-400 focus:ring-0 font-semibold text-violet-700">
                                     </td>
                                     <td class="py-3 px-3">
                                         <select x-model="item.deposito_id"
@@ -201,7 +211,7 @@
                             </template>
                             <template x-if="items.length === 0">
                                 <tr>
-                                    <td colspan="8" class="py-12 text-center text-sm text-gray-400 italic">
+                                    <td colspan="10" class="py-12 text-center text-sm text-gray-400 italic">
                                         <i class="fas fa-shopping-basket text-gray-200 text-2xl block mb-2"></i>
                                         No hay productos en esta orden
                                     </td>
@@ -275,22 +285,23 @@ function compraForm() {
             } catch (e) { console.error(e); }
         },
 
-        precioVenta(item) {
-            return (parseFloat(item.costo) || 0) * (1 + (parseFloat(item.margen_pct) || 0) / 100);
-        },
-
         seleccionarProducto(p) {
             const exists = this.items.find(i => i.producto_id === p.producto_id);
             if (exists) {
                 exists.cantidad++;
             } else {
+                const costo = parseFloat(p.costo || 0);
+                const margen = 35;
                 this.items.push({
                     producto_id: p.producto_id,
                     nombre: p.nombre,
                     codigo: p.codigo,
                     cantidad: 1,
-                    costo: parseFloat(p.costo || 0),
-                    margen_pct: 35,
+                    costo: costo,
+                    margen_pct: margen,
+                    precio_a: parseFloat(p.precio_a) || parseFloat((costo * (1 + margen / 100)).toFixed(2)),
+                    precio_b: parseFloat(p.precio_b) || parseFloat((costo * 1.20).toFixed(2)),
+                    precio_c: parseFloat(p.precio_c) || parseFloat((costo * 1.10).toFixed(2)),
                     deposito_id: <?= $depositos[0]['deposito_id'] ?? 'null' ?>,
                     itbms: 0
                 });
@@ -298,6 +309,12 @@ function compraForm() {
             this.searchQuery = '';
             this.resultados = [];
             this.updateTotals();
+        },
+
+        recalcPrecioA(item) {
+            const costo  = parseFloat(item.costo)     || 0;
+            const margen = parseFloat(item.margen_pct) || 0;
+            item.precio_a = parseFloat((costo * (1 + margen / 100)).toFixed(2));
         },
 
         removeItem(index) {

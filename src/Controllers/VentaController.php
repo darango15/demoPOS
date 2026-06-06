@@ -583,10 +583,12 @@ class VentaController extends Controller
                     COALESCE((SELECT SUM(i.existencia) FROM inventario i JOIN depositos d ON i.deposito_id = d.deposito_id
                               WHERE i.producto_id = p.producto_id AND d.sucursal_id = ?), 0) as stock,
                     COALESCE(pp_a.precio, 0) as precio_a,
-                    COALESCE(pp_b.precio, 0) as precio_b
+                    COALESCE(pp_b.precio, 0) as precio_b,
+                    COALESCE(pp_c.precio, 0) as precio_c
              FROM productos p
              LEFT JOIN precios_productos pp_a ON p.producto_id = pp_a.producto_id AND pp_a.tipo_precio = 'a'
              LEFT JOIN precios_productos pp_b ON p.producto_id = pp_b.producto_id AND pp_b.tipo_precio = 'b'
+             LEFT JOIN precios_productos pp_c ON p.producto_id = pp_c.producto_id AND pp_c.tipo_precio = 'c'
              WHERE p.estado = 'activo' AND p.empresa_id = ?
              AND EXISTS (SELECT 1 FROM inventario i2 JOIN depositos d2 ON i2.deposito_id = d2.deposito_id
                          WHERE i2.producto_id = p.producto_id AND d2.sucursal_id = ?)
