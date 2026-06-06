@@ -73,6 +73,9 @@ $router->group([
     $r->post('/inventario/depositos/{deposito_id}/editar',    [DepositoController::class, 'actualizar']);
     $r->post('/inventario/depositos/{deposito_id}/eliminar',  [DepositoController::class, 'eliminar']);
 
+    // Mini-API compras (sesión, respuesta JSON)
+    $r->post('/api/compras/producto-rapido', [CompraController::class, 'crearProductoRapido']);
+
     // Compras
     $r->get('/compras',                                          [CompraController::class, 'index']);
     $r->get('/compras/nueva',                                    [CompraController::class, 'crear']);

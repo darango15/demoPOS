@@ -115,7 +115,7 @@
                         class="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-sky-400 focus:border-sky-400 outline-none bg-gray-50">
 
                     <!-- Dropdown resultados -->
-                    <div x-show="resultados.length > 0"
+                    <div x-show="resultados.length > 0 || (searchQuery.length >= 2 && buscado)"
                          class="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-2xl max-h-80 overflow-y-auto">
                         <template x-for="p in resultados" :key="p.producto_id">
                             <div @click="seleccionarProducto(p)"
@@ -138,6 +138,70 @@
                                 </div>
                             </div>
                         </template>
+
+                        <!-- Opción crear nuevo -->
+                        <div x-show="searchQuery.length >= 2 && buscado"
+                             @click="abrirModalCrear()"
+                             class="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-emerald-50 border-t border-gray-100 group">
+                            <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center group-hover:bg-emerald-200 shrink-0">
+                                <i class="fas fa-plus text-emerald-600 text-xs"></i>
+                            </div>
+                            <div>
+                                <div class="text-sm font-semibold text-emerald-700">Crear producto nuevo</div>
+                                <div class="text-xs text-emerald-500" x-text="'\"' + searchQuery + '\" no existe — registrar ahora'"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal: Crear producto rápido -->
+                <div x-show="modalCrear" class="fixed inset-0 z-50 flex items-center justify-center" x-cloak>
+                    <div class="fixed inset-0 bg-gray-900/50" @click="modalCrear = false"></div>
+                    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 z-10">
+                        <div class="p-6">
+                            <div class="flex items-center gap-3 mb-5">
+                                <div class="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                                    <i class="fas fa-box text-emerald-600 text-sm"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-base font-bold text-gray-900">Nuevo producto</h3>
+                                    <p class="text-xs text-gray-400">Se creará en el inventario</p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-3 mb-5">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Nombre *</label>
+                                    <input type="text" x-model="nuevoProducto.nombre" @keydown.enter.prevent="crearProducto()"
+                                        placeholder="Ej: Martillo de carpintero"
+                                        class="w-full py-2 px-3 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Código *</label>
+                                    <input type="text" x-model="nuevoProducto.codigo" @keydown.enter.prevent="crearProducto()"
+                                        placeholder="Ej: MART-001"
+                                        class="w-full py-2 px-3 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 outline-none font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Costo unitario ($)</label>
+                                    <input type="number" step="0.0001" min="0" x-model.number="nuevoProducto.costo"
+                                        placeholder="0.00"
+                                        class="w-full py-2 px-3 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 outline-none">
+                                </div>
+                            </div>
+
+                            <div class="flex gap-2">
+                                <button type="button" @click="modalCrear = false"
+                                    class="flex-1 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+                                    Cancelar
+                                </button>
+                                <button type="button" @click="crearProducto()" :disabled="creando"
+                                    class="flex-1 py-2 bg-emerald-500 text-white rounded-lg text-sm font-semibold hover:bg-emerald-600 transition shadow-sm disabled:opacity-50">
+                                    <i class="fas fa-plus mr-1"></i>
+                                    <span x-text="creando ? 'Creando...' : 'Crear y agregar'"></span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -265,6 +329,10 @@ function compraForm() {
     return {
         searchQuery: '',
         resultados: [],
+        buscado: false,
+        modalCrear: false,
+        creando: false,
+        nuevoProducto: { nombre: '', codigo: '', costo: 0 },
         items: [],
         compra: {
             proveedor_id: '',
@@ -277,12 +345,50 @@ function compraForm() {
         totals: { subtotal: 0, itbms: 0, total: 0 },
 
         async buscarProductos() {
-            if (this.searchQuery.length < 2) { this.resultados = []; return; }
+            if (this.searchQuery.length < 2) { this.resultados = []; this.buscado = false; return; }
             try {
                 const r = await fetch(`/api/productos/buscar?q=${encodeURIComponent(this.searchQuery)}`);
                 const d = await r.json();
                 this.resultados = d.productos || [];
+                this.buscado = true;
             } catch (e) { console.error(e); }
+        },
+
+        abrirModalCrear() {
+            const q = this.searchQuery.trim();
+            this.nuevoProducto = {
+                nombre: q,
+                codigo: q.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().substring(0, 10),
+                costo: 0
+            };
+            this.resultados = [];
+            this.buscado = false;
+            this.modalCrear = true;
+        },
+
+        async crearProducto() {
+            if (!this.nuevoProducto.nombre.trim()) return alert('El nombre es requerido.');
+            if (!this.nuevoProducto.codigo.trim()) return alert('El código es requerido.');
+            this.creando = true;
+            try {
+                const r = await fetch('/api/compras/producto-rapido', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.nuevoProducto)
+                });
+                const d = await r.json();
+                if (d.success) {
+                    this.seleccionarProducto(d.producto);
+                    this.modalCrear = false;
+                    this.searchQuery = '';
+                    this.nuevoProducto = { nombre: '', codigo: '', costo: 0 };
+                } else {
+                    alert('Error: ' + d.error);
+                }
+            } catch (e) {
+                alert('Error al crear el producto.');
+            }
+            this.creando = false;
         },
 
         seleccionarProducto(p) {

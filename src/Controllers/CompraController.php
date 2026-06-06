@@ -447,6 +447,68 @@ class CompraController extends Controller
         }
     }
 
+    // ── Crear producto rápido desde compras ──────────────────────────────────────
+
+    public function crearProductoRapido(): void
+    {
+        $data   = $this->request->json() ?: [];
+        $nombre = trim($data['nombre'] ?? '');
+        $codigo = trim($data['codigo'] ?? '');
+        $costo  = (float) ($data['costo'] ?? 0);
+
+        if ($nombre === '') {
+            $this->json(['error' => 'El nombre es requerido'], 422);
+            return;
+        }
+        if ($codigo === '') {
+            $this->json(['error' => 'El código es requerido'], 422);
+            return;
+        }
+
+        $empresaId = $this->empresaId();
+
+        // Verificar código único
+        $existe = Database::query(
+            "SELECT producto_id FROM productos WHERE codigo = ? AND empresa_id = ? LIMIT 1",
+            [$codigo, $empresaId]
+        )->fetch();
+
+        if ($existe) {
+            $this->json(['error' => "El código '{$codigo}' ya está en uso."], 409);
+            return;
+        }
+
+        try {
+            Database::query(
+                "INSERT INTO productos (empresa_id, nombre, codigo, costo, itbms, estado, fecha_creacion)
+                 VALUES (?, ?, ?, ?, 7, 'activo', NOW())",
+                [$empresaId, $nombre, $codigo, $costo]
+            );
+            $productoId = (int) Database::lastInsertId();
+
+            AuditService::log(
+                'inventario.producto.crear_rapido',
+                "Producto creado rápido desde compras: {$nombre} ({$codigo})",
+                $productoId, 'producto', [], $empresaId
+            );
+
+            $this->json([
+                'success'  => true,
+                'producto' => [
+                    'producto_id' => $productoId,
+                    'nombre'      => $nombre,
+                    'codigo'      => $codigo,
+                    'costo'       => $costo,
+                    'precio_a'    => 0,
+                    'precio_b'    => 0,
+                    'precio_c'    => 0,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            $this->json(['error' => 'No se pudo crear el producto: ' . $e->getMessage()], 500);
+        }
+    }
+
     private function findCompra(int $id): ?array
     {
         $compra = Database::query(
