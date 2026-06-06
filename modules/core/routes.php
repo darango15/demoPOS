@@ -8,6 +8,7 @@ use App\Controllers\AuthController;
 use App\Controllers\Auth2faController;
 use App\Controllers\BitacoraController;
 use App\Controllers\AppController;
+use App\Controllers\LimpiezaController;
 use App\Controllers\Api\ApiDashboardController;
 use App\Controllers\Api\ApiDepositoController;
 use App\Controllers\Api\ApiConfiguracionController;
@@ -51,6 +52,10 @@ $router->group([
 
     // Bitácora
     $r->get('/bitacora', [BitacoraController::class, 'index']);
+
+    // Limpieza de BD (solo superusuarios)
+    $r->get('/configuracion/limpieza',           [LimpiezaController::class, 'index']);
+    $r->post('/configuracion/limpieza/ejecutar', [LimpiezaController::class, 'ejecutar']);
 
     // App Store (solo superusuarios)
     $r->get('/apps',                       [AppController::class, 'index']);
