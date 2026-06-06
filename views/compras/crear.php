@@ -181,7 +181,7 @@
                                         </div>
                                     </td>
                                     <td class="py-3 px-3 text-center">
-                                        <input type="number" step="0.01" min="0" x-model.number="item.precio_a"
+                                        <input type="number" step="0.01" min="0" x-model.number="item.precio_a" @input="recalcMargen(item)"
                                             class="w-22 text-center text-sm py-1 bg-sky-50 rounded border-sky-200 focus:border-sky-400 focus:ring-0 font-semibold text-sky-700">
                                     </td>
                                     <td class="py-3 px-3 text-center">
@@ -312,9 +312,17 @@ function compraForm() {
         },
 
         recalcPrecioA(item) {
-            const costo  = parseFloat(item.costo)     || 0;
+            const costo  = parseFloat(item.costo)      || 0;
             const margen = parseFloat(item.margen_pct) || 0;
             item.precio_a = parseFloat((costo * (1 + margen / 100)).toFixed(2));
+        },
+
+        recalcMargen(item) {
+            const costo   = parseFloat(item.costo)   || 0;
+            const precioA = parseFloat(item.precio_a) || 0;
+            if (costo > 0 && precioA > 0) {
+                item.margen_pct = parseFloat(((precioA / costo - 1) * 100).toFixed(2));
+            }
         },
 
         removeItem(index) {
