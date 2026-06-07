@@ -66,8 +66,11 @@
                     </select>
                 </div>
                 <div class="flex items-baseline gap-4">
-                    <label class="text-sm font-semibold text-gray-700 w-44 shrink-0">N° Factura Proveedor</label>
-                    <input type="text" x-model="compra.numero_factura" placeholder="Ej. FAC-001"
+                    <label class="text-sm font-semibold text-gray-700 w-44 shrink-0">
+                        N° Factura Proveedor
+                        <span class="text-gray-400 font-normal text-xs block">opcional</span>
+                    </label>
+                    <input type="text" x-model="compra.numero_factura" placeholder="Ej. FAC-001  (si no tiene, déjelo vacío)"
                         class="flex-1 py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none text-gray-800">
                 </div>
             </div>
