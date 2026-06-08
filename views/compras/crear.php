@@ -260,6 +260,12 @@
                                 </div>
                             </div>
 
+                            <!-- Error inline -->
+                            <div x-show="errorProducto" class="mb-3 flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2.5">
+                                <i class="fas fa-exclamation-circle mt-0.5 shrink-0 text-sm"></i>
+                                <span class="text-xs font-medium" x-text="errorProducto"></span>
+                            </div>
+
                             <div class="flex gap-2">
                                 <button type="button" @click="modalCrear = false"
                                     class="flex-1 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
@@ -407,6 +413,7 @@ function compraForm() {
         buscado: false,
         modalCrear: false,
         creando: false,
+        errorProducto: '',
         nuevoProducto: { nombre: '', codigo: '', costo: 0, categoria_id: '' },
         items: [],
         compra: {
@@ -462,6 +469,7 @@ function compraForm() {
         async abrirModalCrear() {
             const q = this.searchQuery.trim();
             this.nuevoProducto = { nombre: q, codigo: 'Generando...', costo: 0, categoria_id: '' };
+            this.errorProducto = '';
             this.resultados = [];
             this.buscado = false;
             this.modalCrear = true;
@@ -476,8 +484,13 @@ function compraForm() {
         },
 
         async crearProducto() {
-            if (!this.nuevoProducto.nombre.trim()) return alert('El nombre es requerido.');
-            if (!this.nuevoProducto.codigo.trim()) return alert('El código es requerido.');
+            this.errorProducto = '';
+            if (!this.nuevoProducto.nombre.trim()) {
+                this.errorProducto = 'El nombre es requerido.'; return;
+            }
+            if (!this.nuevoProducto.codigo.trim()) {
+                this.errorProducto = 'El código es requerido.'; return;
+            }
             this.creando = true;
             try {
                 const r = await fetch('/api/compras/producto-rapido', {
@@ -489,13 +502,14 @@ function compraForm() {
                 if (d.success) {
                     this.seleccionarProducto(d.producto);
                     this.modalCrear = false;
+                    this.errorProducto = '';
                     this.searchQuery = '';
-                    this.nuevoProducto = { nombre: '', codigo: '', costo: 0 };
+                    this.nuevoProducto = { nombre: '', codigo: '', costo: 0, categoria_id: '' };
                 } else {
-                    alert('Error: ' + d.error);
+                    this.errorProducto = d.error || 'No se pudo crear el producto.';
                 }
             } catch (e) {
-                alert('Error al crear el producto.');
+                this.errorProducto = 'Error de conexión al crear el producto.';
             }
             this.creando = false;
         },
