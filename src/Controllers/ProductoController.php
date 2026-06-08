@@ -204,7 +204,7 @@ class ProductoController extends Controller
             supplierId:     $this->request->post('proveedor_id') ? (int) $this->request->post('proveedor_id') : null,
             supplierPartNo: $this->request->post('supplier_part_no') ?: null,
             newImagePath:   $imagePath,
-            prices:         $this->extractPrices(['a', 'b', 'promocional']),
+            prices:         $this->extractPrices(['a', 'b', 'c', 'promocional']),
         );
 
         try {
@@ -310,7 +310,7 @@ class ProductoController extends Controller
                 categoryId: $product->categoryId(),
                 cost:       $product->cost()->amount(),
                 taxRate:    $product->taxRate(),
-                prices:     $this->extractPrices(['a', 'b', 'promocional']),
+                prices:     $this->extractPrices(['a', 'b', 'c', 'promocional']),
             );
 
             ServiceFactory::getUpdateProductUseCase()->execute($command);
@@ -386,7 +386,7 @@ class ProductoController extends Controller
     }
 
     /** @return array<array{type: string, amount: float}> */
-    private function extractPrices(array $types = ['a', 'b']): array
+    private function extractPrices(array $types = ['a', 'b', 'c']): array
     {
         $prices = [];
         foreach ($types as $type) {

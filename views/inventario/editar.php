@@ -6,7 +6,7 @@
           tab: "precios",
           unidades: <?= json_encode(array_values($unidades ?? [])) ?>,
           agregarUnidad() {
-              this.unidades.push({ nombre: "", factor_conversion: 1, precio_a: 0, precio_b: 0, codigo_barras: "" });
+              this.unidades.push({ nombre: "", factor_conversion: 1, precio_a: 0, precio_b: 0, precio_c: 0, codigo_barras: "" });
           },
           eliminarUnidad(index) {
               this.unidades.splice(index, 1);
@@ -181,8 +181,9 @@
                         <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                             <th class="px-4 py-3 text-left">Presentación</th>
                             <th class="px-4 py-3 text-center w-24">Conv.</th>
-                            <th class="px-4 py-3 text-center text-indigo-500">Precio A</th>
-                            <th class="px-4 py-3 text-center text-emerald-500">Precio B</th>
+                            <th class="px-4 py-3 text-center text-sky-500">Precio 1</th>
+                            <th class="px-4 py-3 text-center text-emerald-500">Precio 2</th>
+                            <th class="px-4 py-3 text-center text-violet-500">Precio 3</th>
                             <th class="px-4 py-3 text-center">Cód. Barras</th>
                             <th class="w-8"></th>
                         </tr>
@@ -191,8 +192,9 @@
                         <tr class="bg-gray-50/50">
                             <td class="px-4 py-3 font-semibold text-gray-700 text-sm">Unidad base</td>
                             <td class="px-4 py-3 text-center text-gray-400 text-xs">1</td>
-                            <td class="px-4 py-2 w-32"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" name="precio_a" value="<?= $precios_map['a'] ?? '0' ?>" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-indigo-700 bg-white focus:ring-2 focus:ring-indigo-300 focus:outline-none"></div></td>
-                            <td class="px-4 py-2 w-32"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" name="precio_b" value="<?= $precios_map['b'] ?? '0' ?>" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-emerald-700 bg-white focus:ring-2 focus:ring-emerald-300 focus:outline-none"></div></td>
+                            <td class="px-4 py-2 w-28"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" name="precio_a" value="<?= $precios_map['a'] ?? '0' ?>" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-sky-700 bg-white focus:ring-2 focus:ring-sky-300 focus:outline-none"></div></td>
+                            <td class="px-4 py-2 w-28"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" name="precio_b" value="<?= $precios_map['b'] ?? '0' ?>" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-emerald-700 bg-white focus:ring-2 focus:ring-emerald-300 focus:outline-none"></div></td>
+                            <td class="px-4 py-2 w-28"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" name="precio_c" value="<?= $precios_map['c'] ?? '0' ?>" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-violet-700 bg-white focus:ring-2 focus:ring-violet-300 focus:outline-none"></div></td>
                             <td class="px-4 py-3 text-center text-gray-300 text-xs">—</td>
                             <td></td>
                         </tr>
@@ -200,8 +202,9 @@
                             <tr class="bg-white group hover:bg-sky-50/30 transition-all">
                                 <td class="px-4 py-2"><input type="text" x-model="u.nombre" placeholder="Ej: Caja de 24" class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-sky-300 focus:border-sky-400 bg-white focus:outline-none"></td>
                                 <td class="px-4 py-2"><input type="number" x-model.number="u.factor_conversion" step="0.01" min="1" class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-center font-black text-gray-700 focus:ring-2 focus:ring-sky-300 bg-white focus:outline-none"></td>
-                                <td class="px-4 py-2"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" x-model.number="u.precio_a" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-indigo-700 bg-white focus:ring-2 focus:ring-indigo-300 focus:outline-none"></div></td>
+                                <td class="px-4 py-2"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" x-model.number="u.precio_a" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-sky-700 bg-white focus:ring-2 focus:ring-sky-300 focus:outline-none"></div></td>
                                 <td class="px-4 py-2"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" x-model.number="u.precio_b" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-emerald-700 bg-white focus:ring-2 focus:ring-emerald-300 focus:outline-none"></div></td>
+                                <td class="px-4 py-2"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" x-model.number="u.precio_c" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-violet-700 bg-white focus:ring-2 focus:ring-violet-300 focus:outline-none"></div></td>
                                 <td class="px-4 py-2"><input type="text" x-model="u.codigo_barras" placeholder="Opcional" class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-500 focus:ring-2 focus:ring-sky-300 bg-white focus:outline-none"></td>
                                 <td class="pr-2 py-2 text-center"><button type="button" @click="eliminarUnidad(index)" class="w-7 h-7 bg-red-100 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition-all flex items-center justify-center text-xs"><i class="fas fa-times"></i></button></td>
                             </tr>
