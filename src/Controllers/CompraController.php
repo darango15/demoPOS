@@ -10,7 +10,6 @@ use App\Services\AuditService;
 use App\Models\Compra;
 use App\Models\CompraDetalle;
 use App\Models\Proveedor;
-use App\Models\Producto;
 use App\Models\Deposito;
 use App\Models\Movimiento;
 use App\Models\Lote;
@@ -86,13 +85,19 @@ class CompraController extends Controller
     public function crear(): void
     {
         $proveedores = Proveedor::all('nombre ASC');
-        $depositos = Deposito::where('sucursal_id', $this->sucursalId());
+        $depositos   = Deposito::where('sucursal_id', $this->sucursalId());
+        $categorias  = Database::query(
+            "SELECT categoria_id, nombre FROM categorias_productos
+             WHERE empresa_id = ? ORDER BY nombre ASC",
+            [$this->empresaId()]
+        )->fetchAll();
 
         $this->view('compras.crear', [
-            'page_title' => 'Nueva Compra',
+            'page_title'    => 'Nueva Compra',
             'page_subtitle' => 'Registrar entrada de mercancía',
-            'proveedores' => $proveedores,
-            'depositos' => $depositos
+            'proveedores'   => $proveedores,
+            'depositos'     => $depositos,
+            'categorias'    => $categorias,
         ]);
     }
 
@@ -447,25 +452,99 @@ class CompraController extends Controller
         }
     }
 
+    // ── Crear proveedor rápido desde compras ─────────────────────────────────────
+
+    public function crearProveedorRapido(): void
+    {
+        $data   = $this->request->json() ?: [];
+        $nombre = trim($data['nombre'] ?? '');
+
+        if ($nombre === '') {
+            $this->json(['error' => 'El nombre es requerido'], 422);
+            return;
+        }
+
+        $empresaId = $this->empresaId();
+
+        try {
+            // Auto-generar código tipo PROV01, PROV02...
+            $ultimo = Database::query(
+                "SELECT codigo FROM proveedores
+                 WHERE empresa_id = ? AND codigo REGEXP '^PROV[0-9]+$'
+                 ORDER BY CAST(SUBSTRING(codigo, 5) AS UNSIGNED) DESC LIMIT 1",
+                [$empresaId]
+            )->fetch();
+            $siguiente = $ultimo ? ((int) substr($ultimo['codigo'], 4) + 1) : 1;
+            $codigo    = 'PROV' . str_pad((string)$siguiente, 2, '0', STR_PAD_LEFT);
+
+            Database::query(
+                "INSERT INTO proveedores (empresa_id, codigo, nombre, telefono, ruc, estado, fecha_registro)
+                 VALUES (?, ?, ?, ?, ?, 'activo', NOW())",
+                [
+                    $empresaId,
+                    $codigo,
+                    $nombre,
+                    trim($data['telefono'] ?? '') ?: null,
+                    trim($data['ruc']      ?? '') ?: null,
+                ]
+            );
+            $proveedorId = (int) Database::lastInsertId();
+
+            AuditService::log(
+                'inventario.proveedor.crear_rapido',
+                "Proveedor creado rápido desde compras: {$nombre}",
+                $proveedorId, 'proveedor', [], $empresaId
+            );
+
+            $this->json([
+                'success'   => true,
+                'proveedor' => ['id' => $proveedorId, 'nombre' => $nombre],
+            ]);
+        } catch (\Throwable $e) {
+            $this->json(['error' => 'No se pudo crear el proveedor: ' . $e->getMessage()], 500);
+        }
+    }
+
+    // ── Siguiente código de producto ──────────────────────────────────────────────
+
+    public function siguienteCodigoProducto(): void
+    {
+        $this->json(['codigo' => $this->generarCodigoProducto()]);
+    }
+
+    private function generarCodigoProducto(): string
+    {
+        $ultimo = Database::query(
+            "SELECT codigo FROM productos
+             WHERE empresa_id = ? AND codigo REGEXP '^PROD-[0-9]+$'
+             ORDER BY CAST(SUBSTRING(codigo, 6) AS UNSIGNED) DESC LIMIT 1",
+            [$this->empresaId()]
+        )->fetch();
+
+        $siguiente = $ultimo ? ((int) substr($ultimo['codigo'], 5) + 1) : 1;
+        return 'PROD-' . str_pad((string) $siguiente, 5, '0', STR_PAD_LEFT);
+    }
+
     // ── Crear producto rápido desde compras ──────────────────────────────────────
 
     public function crearProductoRapido(): void
     {
         $data   = $this->request->json() ?: [];
         $nombre = trim($data['nombre'] ?? '');
-        $codigo = trim($data['codigo'] ?? '');
         $costo  = (float) ($data['costo'] ?? 0);
 
         if ($nombre === '') {
             $this->json(['error' => 'El nombre es requerido'], 422);
             return;
         }
-        if ($codigo === '') {
-            $this->json(['error' => 'El código es requerido'], 422);
-            return;
-        }
 
         $empresaId = $this->empresaId();
+
+        // Usar código enviado o generar consecutivo
+        $codigo = trim($data['codigo'] ?? '');
+        if ($codigo === '') {
+            $codigo = $this->generarCodigoProducto();
+        }
 
         // Verificar código único
         $existe = Database::query(
@@ -479,12 +558,32 @@ class CompraController extends Controller
         }
 
         try {
+            $categoriaId = !empty($data['categoria_id']) ? (int)$data['categoria_id'] : null;
+
             Database::query(
-                "INSERT INTO productos (empresa_id, nombre, codigo, costo, itbms, estado, fecha_creacion)
-                 VALUES (?, ?, ?, ?, 7, 'activo', NOW())",
-                [$empresaId, $nombre, $codigo, $costo]
+                "INSERT INTO productos (empresa_id, nombre, codigo, costo, categoria_id, itbms, estado, fecha_creacion)
+                 VALUES (?, ?, ?, ?, ?, 7, 'activo', NOW())",
+                [$empresaId, $nombre, $codigo, $costo, $categoriaId]
             );
             $productoId = (int) Database::lastInsertId();
+
+            // Crear registro de inventario en el depósito principal de la sucursal
+            // para que el producto aparezca en el listado de inventario
+            $deposito = Database::query(
+                "SELECT deposito_id FROM depositos
+                 WHERE sucursal_id = ? AND estado = 'activo'
+                 ORDER BY es_principal DESC LIMIT 1",
+                [$this->sucursalId()]
+            )->fetch();
+
+            if ($deposito) {
+                Database::query(
+                    "INSERT INTO inventario
+                        (producto_id, deposito_id, existencia, ultimo_costo, costo_promedio, fecha_actualizacion_costo)
+                     VALUES (?, ?, 0, ?, ?, NOW())",
+                    [$productoId, $deposito['deposito_id'], $costo, $costo]
+                );
+            }
 
             AuditService::log(
                 'inventario.producto.crear_rapido',

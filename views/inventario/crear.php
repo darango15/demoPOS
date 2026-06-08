@@ -1,19 +1,13 @@
 <?php use App\Core\View; View::layout('app'); ?>
 <?php View::section('content'); ?>
 
-<form action="/inventario/nuevo" method="POST" enctype="multipart/form-data"
-      x-data='{
-          tab: "precios",
-          unidades: [],
-          agregarUnidad() {
-              this.unidades.push({ nombre: "", factor_conversion: 1, precio_a: 0, precio_b: 0, codigo_barras: "" });
-          },
-          eliminarUnidad(index) {
-              this.unidades.splice(index, 1);
-          }
-      }'>
+<div x-data="productoForm()">
+<form action="/inventario/nuevo" method="POST" enctype="multipart/form-data">
     <?= View::csrf() ?>
-    <input type="hidden" name="unidades_json" :value="JSON.stringify(unidades)">
+    <input type="hidden" name="unidades_json"  :value="JSON.stringify(unidades)">
+    <input type="hidden" name="categoria_id"   :value="selCategoria">
+    <input type="hidden" name="marca"          :value="selMarca">
+    <input type="hidden" name="proveedor_id"   :value="selProveedor">
 
     <!-- Breadcrumb -->
     <div class="flex items-center gap-2 text-sm text-gray-400 mb-3">
@@ -52,38 +46,55 @@
                         <input type="text" name="nombre" required
                                class="flex-1 py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none">
                     </div>
+                    <!-- Categoría -->
                     <div class="flex items-baseline gap-4 py-2">
                         <label class="text-sm font-semibold text-gray-600 w-40 shrink-0">Categoría</label>
-                        <select name="categoria_id" class="flex-1 py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
-                            <option value="">Sin categoría</option>
-                            <?php foreach (($categorias ?? []) as $cat):
-                                $cId  = is_array($cat) ? ($cat['categoria_id'] ?? '') : ($cat->categoria_id ?? '');
-                                $cNom = is_array($cat) ? ($cat['nombre'] ?? '') : ($cat->nombre ?? '');
-                            ?>
-                                <option value="<?= $cId ?>"><?= View::e($cNom) ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <div class="flex-1 flex items-center gap-2">
+                            <select x-model="selCategoria" class="flex-1 py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
+                                <option value="">Sin categoría</option>
+                                <template x-for="c in categorias" :key="c.id">
+                                    <option :value="c.id" x-text="c.nombre"></option>
+                                </template>
+                            </select>
+                            <button type="button" @click="modalCat = true"
+                                class="shrink-0 text-emerald-500 hover:text-emerald-700 transition-colors" title="Nueva categoría">
+                                <i class="fas fa-plus-circle text-lg"></i>
+                            </button>
+                        </div>
                     </div>
+
+                    <!-- Marca -->
                     <div class="flex items-baseline gap-4 py-2">
                         <label class="text-sm font-semibold text-gray-600 w-40 shrink-0">Marca</label>
-                        <select name="marca" class="flex-1 py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
-                            <option value="">Sin marca</option>
-                            <?php foreach (($marcas ?? []) as $mar): ?>
-                                <option value="<?= View::e($mar['nombre']) ?>"><?= View::e($mar['nombre']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <div class="flex-1 flex items-center gap-2">
+                            <select x-model="selMarca" class="flex-1 py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
+                                <option value="">Sin marca</option>
+                                <template x-for="m in marcas" :key="m.nombre">
+                                    <option :value="m.nombre" x-text="m.nombre"></option>
+                                </template>
+                            </select>
+                            <button type="button" @click="modalMarca = true"
+                                class="shrink-0 text-emerald-500 hover:text-emerald-700 transition-colors" title="Nueva marca">
+                                <i class="fas fa-plus-circle text-lg"></i>
+                            </button>
+                        </div>
                     </div>
+
+                    <!-- Proveedor -->
                     <div class="flex items-baseline gap-4 py-2">
                         <label class="text-sm font-semibold text-gray-600 w-40 shrink-0">Proveedor</label>
-                        <select name="proveedor_id" class="flex-1 py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
-                            <option value="">Ninguno</option>
-                            <?php foreach (($proveedores ?? []) as $prov):
-                                $pId  = is_array($prov) ? ($prov['proveedor_id'] ?? '') : ($prov->proveedor_id ?? '');
-                                $pNom = is_array($prov) ? ($prov['nombre'] ?? '') : ($prov->nombre ?? '');
-                            ?>
-                                <option value="<?= $pId ?>"><?= View::e($pNom) ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <div class="flex-1 flex items-center gap-2">
+                            <select x-model="selProveedor" class="flex-1 py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
+                                <option value="">Ninguno</option>
+                                <template x-for="p in proveedores" :key="p.id">
+                                    <option :value="p.id" x-text="p.nombre"></option>
+                                </template>
+                            </select>
+                            <button type="button" @click="modalProv = true"
+                                class="shrink-0 text-emerald-500 hover:text-emerald-700 transition-colors" title="Nuevo proveedor">
+                                <i class="fas fa-plus-circle text-lg"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -159,8 +170,9 @@
                         <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                             <th class="px-4 py-3 text-left">Presentación</th>
                             <th class="px-4 py-3 text-center w-24" title="Unidades base que contiene">Conv.</th>
-                            <th class="px-4 py-3 text-center text-indigo-500">Precio A</th>
-                            <th class="px-4 py-3 text-center text-emerald-500">Precio B</th>
+                            <th class="px-4 py-3 text-center text-sky-500">Precio 1</th>
+                            <th class="px-4 py-3 text-center text-emerald-500">Precio 2</th>
+                            <th class="px-4 py-3 text-center text-violet-500">Precio 3</th>
                             <th class="px-4 py-3 text-center">Cód. Barras</th>
                             <th class="w-8"></th>
                         </tr>
@@ -169,8 +181,9 @@
                         <tr class="bg-gray-50/50">
                             <td class="px-4 py-3 font-semibold text-gray-700 text-sm">Unidad base</td>
                             <td class="px-4 py-3 text-center text-gray-400 text-xs">1</td>
-                            <td class="px-4 py-2 w-32"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" name="precio_a" value="0" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-indigo-700 bg-white focus:ring-2 focus:ring-indigo-300 focus:outline-none"></div></td>
-                            <td class="px-4 py-2 w-32"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" name="precio_b" value="0" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-emerald-700 bg-white focus:ring-2 focus:ring-emerald-300 focus:outline-none"></div></td>
+                            <td class="px-4 py-2 w-28"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" name="precio_a" value="0" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-sky-700 bg-white focus:ring-2 focus:ring-sky-300 focus:outline-none"></div></td>
+                            <td class="px-4 py-2 w-28"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" name="precio_b" value="0" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-emerald-700 bg-white focus:ring-2 focus:ring-emerald-300 focus:outline-none"></div></td>
+                            <td class="px-4 py-2 w-28"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" name="precio_c" value="0" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-violet-700 bg-white focus:ring-2 focus:ring-violet-300 focus:outline-none"></div></td>
                             <td class="px-4 py-3 text-center text-gray-300 text-xs">—</td>
                             <td></td>
                         </tr>
@@ -178,8 +191,9 @@
                             <tr class="bg-white group hover:bg-sky-50/30 transition-all">
                                 <td class="px-4 py-2"><input type="text" x-model="u.nombre" placeholder="Ej: Caja de 24" class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-sky-300 focus:border-sky-400 bg-white focus:outline-none"></td>
                                 <td class="px-4 py-2"><input type="number" x-model.number="u.factor_conversion" step="1" min="1" class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-center font-black text-gray-700 focus:ring-2 focus:ring-sky-300 bg-white focus:outline-none"></td>
-                                <td class="px-4 py-2"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" x-model.number="u.precio_a" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-indigo-700 bg-white focus:ring-2 focus:ring-indigo-300 focus:outline-none"></div></td>
+                                <td class="px-4 py-2"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" x-model.number="u.precio_a" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-sky-700 bg-white focus:ring-2 focus:ring-sky-300 focus:outline-none"></div></td>
                                 <td class="px-4 py-2"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" x-model.number="u.precio_b" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-emerald-700 bg-white focus:ring-2 focus:ring-emerald-300 focus:outline-none"></div></td>
+                                <td class="px-4 py-2"><div class="relative"><span class="absolute left-2 top-2 text-gray-400 text-xs">$</span><input type="number" x-model.number="u.precio_c" step="0.01" min="0" class="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-violet-700 bg-white focus:ring-2 focus:ring-violet-300 focus:outline-none"></div></td>
                                 <td class="px-4 py-2"><input type="text" x-model="u.codigo_barras" placeholder="Opcional" class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-500 focus:ring-2 focus:ring-sky-300 bg-white focus:outline-none"></td>
                                 <td class="pr-2 py-2 text-center"><button type="button" @click="eliminarUnidad(index)" class="w-7 h-7 bg-red-100 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition-all flex items-center justify-center text-xs"><i class="fas fa-times"></i></button></td>
                             </tr>
@@ -246,4 +260,214 @@
     </div>
 </form>
 
+<!-- ── Modales de creación rápida (dentro del scope x-data del div padre) ──── -->
+
+<!-- Modal: Nueva Categoría -->
+<div x-show="modalCat" class="fixed inset-0 z-50 flex items-center justify-center" x-cloak>
+    <div class="fixed inset-0 bg-gray-900/50" @click="modalCat = false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 z-10 p-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-9 h-9 bg-sky-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fas fa-tags text-sky-600 text-sm"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-gray-900">Nueva Categoría</h3>
+                <p class="text-xs text-gray-400">Se creará al nivel raíz</p>
+            </div>
+        </div>
+        <div class="mb-4">
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Nombre *</label>
+            <input type="text" x-model="nuevaCat.nombre" @keydown.enter.prevent="crearCategoria()"
+                placeholder="Ej: Herramientas Manuales"
+                class="w-full py-2 px-3 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-sky-400 focus:border-sky-400 outline-none">
+        </div>
+        <div class="flex gap-2">
+            <button type="button" @click="modalCat = false"
+                class="flex-1 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition">Cancelar</button>
+            <button type="button" @click="crearCategoria()" :disabled="creandoCat"
+                class="flex-1 py-2 bg-sky-500 text-white rounded-lg text-sm font-semibold hover:bg-sky-600 transition shadow-sm disabled:opacity-50">
+                <span x-text="creandoCat ? 'Creando...' : '+ Crear'"></span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Nueva Marca -->
+<div x-show="modalMarca" class="fixed inset-0 z-50 flex items-center justify-center" x-cloak>
+    <div class="fixed inset-0 bg-gray-900/50" @click="modalMarca = false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 z-10 p-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fas fa-star text-amber-600 text-sm"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-gray-900">Nueva Marca</h3>
+                <p class="text-xs text-gray-400">Se añadirá al catálogo de marcas</p>
+            </div>
+        </div>
+        <div class="mb-4">
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Nombre *</label>
+            <input type="text" x-model="nuevaMarca.nombre" @keydown.enter.prevent="crearMarca()"
+                placeholder="Ej: Stanley, Bosch, 3M"
+                class="w-full py-2 px-3 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-amber-400 focus:border-amber-400 outline-none">
+        </div>
+        <div class="flex gap-2">
+            <button type="button" @click="modalMarca = false"
+                class="flex-1 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition">Cancelar</button>
+            <button type="button" @click="crearMarca()" :disabled="creandoMarca"
+                class="flex-1 py-2 bg-amber-500 text-white rounded-lg text-sm font-semibold hover:bg-amber-600 transition shadow-sm disabled:opacity-50">
+                <span x-text="creandoMarca ? 'Creando...' : '+ Crear'"></span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Nuevo Proveedor -->
+<div x-show="modalProv" class="fixed inset-0 z-50 flex items-center justify-center" x-cloak>
+    <div class="fixed inset-0 bg-gray-900/50" @click="modalProv = false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 z-10 p-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                <i class="fas fa-truck text-emerald-600 text-sm"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-gray-900">Nuevo Proveedor</h3>
+                <p class="text-xs text-gray-400">Se creará en el directorio de proveedores</p>
+            </div>
+        </div>
+        <div class="space-y-3 mb-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Nombre *</label>
+                <input type="text" x-model="nuevoProv.nombre" @keydown.enter.prevent="crearProveedor()"
+                    placeholder="Ej: Distribuidora Nacional S.A."
+                    class="w-full py-2 px-3 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Teléfono</label>
+                <input type="text" x-model="nuevoProv.telefono"
+                    placeholder="+507 000-0000"
+                    class="w-full py-2 px-3 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-400 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">RUC</label>
+                <input type="text" x-model="nuevoProv.ruc"
+                    placeholder="Ej: 888-000-00000"
+                    class="w-full py-2 px-3 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-400 outline-none font-mono">
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button type="button" @click="modalProv = false"
+                class="flex-1 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition">Cancelar</button>
+            <button type="button" @click="crearProveedor()" :disabled="creandoProv"
+                class="flex-1 py-2 bg-emerald-500 text-white rounded-lg text-sm font-semibold hover:bg-emerald-600 transition shadow-sm disabled:opacity-50">
+                <span x-text="creandoProv ? 'Creando...' : '+ Crear'"></span>
+            </button>
+        </div>
+    </div>
+</div>
+
+</div><!-- /x-data productoForm() -->
+
 <?php View::endSection('content'); ?>
+
+<?php View::section('extra_js'); ?>
+<script>
+function productoForm() {
+    return {
+        tab: 'precios',
+        unidades: [],
+
+        // Listas dinámicas inicializadas desde PHP
+        categorias: <?= json_encode(array_map(function($c) {
+            return ['id' => is_array($c) ? ($c['categoria_id'] ?? '') : ($c->categoria_id ?? ''),
+                    'nombre' => is_array($c) ? ($c['nombre'] ?? '') : ($c->nombre ?? '')];
+        }, $categorias ?? [])) ?>,
+        marcas: <?= json_encode(array_map(fn($m) => ['nombre' => $m['nombre']], $marcas ?? [])) ?>,
+        proveedores: <?= json_encode(array_map(function($p) {
+            return ['id' => is_array($p) ? ($p['proveedor_id'] ?? '') : ($p->proveedor_id ?? ''),
+                    'nombre' => is_array($p) ? ($p['nombre'] ?? '') : ($p->nombre ?? '')];
+        }, $proveedores ?? [])) ?>,
+
+        // Valores seleccionados
+        selCategoria: '',
+        selMarca: '',
+        selProveedor: '',
+
+        // Estado modales
+        modalCat: false,   nuevaCat:   { nombre: '' },         creandoCat: false,
+        modalMarca: false, nuevaMarca: { nombre: '' },         creandoMarca: false,
+        modalProv: false,  nuevoProv:  { nombre: '', ruc: '', telefono: '' }, creandoProv: false,
+
+        // Presentaciones
+        agregarUnidad() {
+            this.unidades.push({ nombre: '', factor_conversion: 1, precio_a: 0, precio_b: 0, precio_c: 0, codigo_barras: '' });
+        },
+        eliminarUnidad(index) {
+            this.unidades.splice(index, 1);
+        },
+
+        // Crear categoría
+        async crearCategoria() {
+            if (!this.nuevaCat.nombre.trim()) return;
+            this.creandoCat = true;
+            try {
+                const r = await fetch('/api/inventario/categoria-rapida', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.nuevaCat)
+                });
+                const d = await r.json();
+                if (d.success) {
+                    this.categorias.push(d.categoria);
+                    this.selCategoria = d.categoria.id;
+                    this.modalCat = false;
+                    this.nuevaCat = { nombre: '' };
+                } else { alert(d.error); }
+            } catch(e) { alert('Error al crear la categoría.'); }
+            this.creandoCat = false;
+        },
+
+        // Crear marca
+        async crearMarca() {
+            if (!this.nuevaMarca.nombre.trim()) return;
+            this.creandoMarca = true;
+            try {
+                const r = await fetch('/api/inventario/marca-rapida', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.nuevaMarca)
+                });
+                const d = await r.json();
+                if (d.success) {
+                    if (!this.marcas.find(function(m) { return m.nombre === d.marca.nombre; })) {
+                        this.marcas.push(d.marca);
+                    }
+                    this.selMarca = d.marca.nombre;
+                    this.modalMarca = false;
+                    this.nuevaMarca = { nombre: '' };
+                } else { alert(d.error); }
+            } catch(e) { alert('Error al crear la marca.'); }
+            this.creandoMarca = false;
+        },
+
+        // Crear proveedor
+        async crearProveedor() {
+            if (!this.nuevoProv.nombre.trim()) return;
+            this.creandoProv = true;
+            try {
+                const r = await fetch('/api/compras/proveedor-rapido', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.nuevoProv)
+                });
+                const d = await r.json();
+                if (d.success) {
+                    this.proveedores.push(d.proveedor);
+                    this.selProveedor = d.proveedor.id;
+                    this.modalProv = false;
+                    this.nuevoProv = { nombre: '', ruc: '', telefono: '' };
+                } else { alert(d.error); }
+            } catch(e) { alert('Error al crear el proveedor.'); }
+            this.creandoProv = false;
+        }
+    };
+}
+</script>
+<?php View::endSection('extra_js'); ?>

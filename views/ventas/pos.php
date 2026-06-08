@@ -593,14 +593,16 @@
                 pagina.forEach(p => {
                     const imgUrl = p.imagen_principal ? '/assets/uploads/' + p.imagen_principal : '/assets/img/no-image.svg';
                     const prA = parseFloat(p.precio_a || 0);
+                    const prB = parseFloat(p.precio_b || 0);
+                    const prC = parseFloat(p.precio_c || 0);
                     const unidades = p.unidades || [];
 
-                    // Fila base: unidad
-                    let filasPrecios = `
-                        <div class="flex items-center gap-2">
-                            <span class="text-[10px] text-gray-400 w-14 shrink-0 text-right font-medium">Unidad</span>
-                            <button onclick="seleccionarYAgregar(${p.producto_id}, 'a', ${prA}, null, 'Unid.')" class="px-4 py-1.5 bg-pos hover:bg-sky-600 text-white text-sm font-bold rounded-lg transition-colors shadow-sm">$${prA.toFixed(2)}</button>
-                        </div>`;
+                    // Botones de precio 1, 2, 3
+                    let filasPrecios = `<div class="flex flex-wrap gap-1.5">`;
+                    filasPrecios += `<button onclick="seleccionarYAgregar(${p.producto_id}, 'a', ${prA}, null, 'Unid.')" class="px-3 py-1.5 bg-pos hover:bg-sky-600 text-white text-xs font-bold rounded-lg transition-colors shadow-sm flex flex-col items-center leading-tight"><span class="text-[9px] opacity-75">P1</span>$${prA.toFixed(2)}</button>`;
+                    if (prB > 0) filasPrecios += `<button onclick="seleccionarYAgregar(${p.producto_id}, 'b', ${prB}, null, 'Unid.')" class="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-colors shadow-sm flex flex-col items-center leading-tight"><span class="text-[9px] opacity-75">P2</span>$${prB.toFixed(2)}</button>`;
+                    if (prC > 0) filasPrecios += `<button onclick="seleccionarYAgregar(${p.producto_id}, 'c', ${prC}, null, 'Unid.')" class="px-3 py-1.5 bg-violet-500 hover:bg-violet-600 text-white text-xs font-bold rounded-lg transition-colors shadow-sm flex flex-col items-center leading-tight"><span class="text-[9px] opacity-75">P3</span>$${prC.toFixed(2)}</button>`;
+                    filasPrecios += `</div>`;
 
                     // Filas por presentación
                     unidades.forEach(u => {

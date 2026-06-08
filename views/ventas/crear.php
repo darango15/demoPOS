@@ -260,8 +260,8 @@
                                         </div>
                                     </div>
                                     <div class="text-right">
-                                        <div class="text-sm font-bold text-gray-700" x-text="'$' + parseFloat(p.precio_a).toFixed(2)"></div>
-                                        <div class="text-[10px] text-gray-400 uppercase">Precio A</div>
+                                        <div class="text-sm font-bold text-sky-600" x-text="'$' + parseFloat(p.precio_a).toFixed(2)"></div>
+                                        <div class="text-[10px] text-gray-400 uppercase">Precio 1</div>
                                     </div>
                                 </div>
                             </template>
@@ -284,11 +284,11 @@
                         <thead>
                             <tr class="border-b border-gray-100">
                                 <th class="py-2.5 pr-4 text-left text-xs font-semibold text-gray-500 w-8">#</th>
-                                <th class="py-2.5 pr-4 text-left text-xs font-semibold text-gray-500">Producto</th>
-                                <th class="py-2.5 px-3 text-center text-xs font-semibold text-gray-500 w-24">Cant.</th>
-                                <th class="py-2.5 px-3 text-center text-xs font-semibold text-gray-500 w-28">Unidad</th>
-                                <th class="py-2.5 px-3 text-right text-xs font-semibold text-gray-500 w-28">Precio</th>
-                                <th class="py-2.5 pl-3 text-right text-xs font-semibold text-gray-500 w-28">Total</th>
+                                <th class="py-2.5 pr-4 text-left text-xs font-semibold text-gray-500 w-64">Producto</th>
+                                <th class="py-2.5 px-3 text-center text-xs font-semibold text-gray-500 w-20">Cant.</th>
+                                <th class="py-2.5 px-3 text-center text-xs font-semibold text-gray-500 w-24">Unidad</th>
+                                <th class="py-2.5 px-3 text-right text-xs font-semibold text-gray-500 w-52">Precio</th>
+                                <th class="py-2.5 pl-3 text-right text-xs font-semibold text-gray-500 w-24">Total</th>
                                 <th class="w-8"></th>
                             </tr>
                         </thead>
@@ -315,11 +315,22 @@
                                             </template>
                                         </select>
                                     </td>
-                                    <td class="py-3 px-3 text-right">
-                                        <div class="relative inline-flex items-center">
-                                            <span class="absolute left-1 text-xs text-gray-400">$</span>
-                                            <input type="number" x-model.number="item.precio" @change="calcularTotales()" step="0.01"
-                                                   class="w-24 pl-4 text-right text-sm py-1 bg-gray-50 rounded border border-gray-200 focus:border-sky-400 focus:ring-0 font-semibold">
+                                    <td class="py-3 px-3">
+                                        <div class="flex items-center justify-end gap-1">
+                                            <button type="button" @click="item.precio = item.precio_base_a; calcularTotales()"
+                                                :class="item.precio === item.precio_base_a ? 'bg-sky-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-sky-50'"
+                                                class="px-1.5 py-1 rounded text-[10px] font-bold transition-colors leading-none">P1</button>
+                                            <button type="button" x-show="item.precio_base_b > 0" @click="item.precio = item.precio_base_b; calcularTotales()"
+                                                :class="item.precio === item.precio_base_b ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-emerald-50'"
+                                                class="px-1.5 py-1 rounded text-[10px] font-bold transition-colors leading-none">P2</button>
+                                            <button type="button" x-show="item.precio_base_c > 0" @click="item.precio = item.precio_base_c; calcularTotales()"
+                                                :class="item.precio === item.precio_base_c ? 'bg-violet-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-violet-50'"
+                                                class="px-1.5 py-1 rounded text-[10px] font-bold transition-colors leading-none">P3</button>
+                                            <div class="relative inline-flex items-center">
+                                                <span class="absolute left-1.5 text-xs text-gray-400">$</span>
+                                                <input type="number" x-model.number="item.precio" @change="calcularTotales()" step="0.01"
+                                                       class="w-24 pl-5 text-right text-sm py-1 bg-gray-50 rounded border border-gray-200 focus:border-sky-400 focus:ring-0 font-semibold">
+                                            </div>
                                         </div>
                                     </td>
                                     <td class="py-3 pl-3 text-right text-sm font-bold text-gray-700"
@@ -491,6 +502,7 @@
                         unidades_adicionales: p.unidades || [],
                         precio_base_a: parseFloat(p.precio_a) || 0,
                         precio_base_b: parseFloat(p.precio_b) || 0,
+                        precio_base_c: parseFloat(p.precio_c) || 0,
                         precio: parseFloat(p.precio_a) || 0,
                         descuento: 0,
                         applica_itbms: p.itbms == 1

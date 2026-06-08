@@ -40,13 +40,15 @@ final class ProductListQuery
                             COALESCE(i.existencia, 0)    AS stock_total,
                             COALESCE(i.costo_promedio, 0) AS costo_promedio,
                             COALESCE(pa.precio, 0) AS precio_a,
-                            COALESCE(pb.precio, 0) AS precio_b
+                            COALESCE(pb.precio, 0) AS precio_b,
+                            COALESCE(pc.precio, 0) AS precio_c
                      FROM productos p
                      LEFT JOIN categorias_productos c  ON p.categoria_id  = c.categoria_id
                      LEFT JOIN proveedores pr          ON p.proveedor_id  = pr.proveedor_id
                      LEFT JOIN inventario i            ON i.producto_id   = p.producto_id AND i.deposito_id = ?
                      LEFT JOIN precios_productos pa    ON pa.producto_id  = p.producto_id AND pa.tipo_precio = 'a'
                      LEFT JOIN precios_productos pb    ON pb.producto_id  = p.producto_id AND pb.tipo_precio = 'b'
+                     LEFT JOIN precios_productos pc    ON pc.producto_id  = p.producto_id AND pc.tipo_precio = 'c'
                      WHERE {$where}
                      ORDER BY p.fecha_creacion DESC
                      LIMIT {$perPage} OFFSET {$offset}";

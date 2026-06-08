@@ -74,7 +74,13 @@ $router->group([
     $r->post('/inventario/depositos/{deposito_id}/eliminar',  [DepositoController::class, 'eliminar']);
 
     // Mini-API compras (sesión, respuesta JSON)
-    $r->post('/api/compras/producto-rapido', [CompraController::class, 'crearProductoRapido']);
+    $r->get('/api/compras/siguiente-codigo',   [CompraController::class, 'siguienteCodigoProducto']);
+    $r->post('/api/compras/producto-rapido',   [CompraController::class, 'crearProductoRapido']);
+    $r->post('/api/compras/proveedor-rapido',  [CompraController::class, 'crearProveedorRapido']);
+
+    // Mini-API inventario (creación rápida desde formulario de producto)
+    $r->post('/api/inventario/categoria-rapida', [ProductoController::class, 'crearCategoriaRapida']);
+    $r->post('/api/inventario/marca-rapida',     [ProductoController::class, 'crearMarcaRapida']);
 
     // Compras
     $r->get('/compras',                                          [CompraController::class, 'index']);

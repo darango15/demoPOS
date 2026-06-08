@@ -195,8 +195,9 @@ function posCatFilter() {
         <thead>
             <tr>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Producto</th>
-                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Precio A</th>
-                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Precio B</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-semibold text-sky-500 uppercase tracking-wider">Precio 1</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-semibold text-emerald-500 uppercase tracking-wider">Precio 2</th>
+                <th class="px-4 py-3 bg-gray-50 text-left text-xs font-semibold text-violet-500 uppercase tracking-wider">Precio 3</th>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Costo</th>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Inventario</th>
                 <th class="px-4 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Disponibilidad</th>
@@ -241,13 +242,17 @@ function posCatFilter() {
                         </div>
                     </div>
                 </td>
-                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-sky-600">
                     <?php $precioA = is_array($producto) ? ($producto['precio_a'] ?? 0) : ($producto->precio_a ?? 0); ?>
                     <?= $precioA ? '$' . number_format((float)$precioA, 2) : '<span class="text-gray-300">—</span>' ?>
                 </td>
-                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-emerald-600">
                     <?php $precioB = is_array($producto) ? ($producto['precio_b'] ?? 0) : ($producto->precio_b ?? 0); ?>
                     <?= $precioB ? '$' . number_format((float)$precioB, 2) : '<span class="text-gray-300">—</span>' ?>
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-violet-600">
+                    <?php $precioC = is_array($producto) ? ($producto['precio_c'] ?? 0) : ($producto->precio_c ?? 0); ?>
+                    <?= $precioC ? '$' . number_format((float)$precioC, 2) : '<span class="text-gray-300">—</span>' ?>
                 </td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">$<?= number_format((float)$costo, 2) ?></td>
                 <td class="px-4 py-3 whitespace-nowrap">

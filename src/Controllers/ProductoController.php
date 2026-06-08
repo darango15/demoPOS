@@ -463,4 +463,66 @@ class ProductoController extends Controller
 
         SimpleXlsxWriter::output('inventario_' . date('Y-m-d') . '.xlsx', $headers, $rows);
     }
+
+    // ── Creación rápida desde formulario de producto ──────────────────────────
+
+    public function crearCategoriaRapida(): void
+    {
+        $data   = $this->request->json() ?: [];
+        $nombre = trim($data['nombre'] ?? '');
+
+        if ($nombre === '') {
+            $this->json(['error' => 'El nombre es requerido'], 422);
+            return;
+        }
+
+        $empresaId = $this->empresaId();
+
+        try {
+            Database::query(
+                "INSERT INTO categorias_productos (empresa_id, nombre, nivel, padre_id) VALUES (?, ?, 1, NULL)",
+                [$empresaId, $nombre]
+            );
+            $id = (int) Database::lastInsertId();
+
+            AuditService::log('inventario.categoria.crear_rapido', "Categoría creada: {$nombre}", $id, 'categoria', [], $empresaId);
+            $this->json(['success' => true, 'categoria' => ['id' => $id, 'nombre' => $nombre]]);
+        } catch (\Throwable $e) {
+            $this->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function crearMarcaRapida(): void
+    {
+        $data   = $this->request->json() ?: [];
+        $nombre = trim($data['nombre'] ?? '');
+
+        if ($nombre === '') {
+            $this->json(['error' => 'El nombre es requerido'], 422);
+            return;
+        }
+
+        $empresaId = $this->empresaId();
+
+        // Si ya existe, simplemente la devuelve
+        $existe = (int) Database::query(
+            "SELECT COUNT(*) AS n FROM marcas WHERE empresa_id = ? AND nombre = ?",
+            [$empresaId, $nombre]
+        )->fetch()['n'];
+
+        if (!$existe) {
+            try {
+                Database::query(
+                    "INSERT INTO marcas (empresa_id, nombre) VALUES (?, ?)",
+                    [$empresaId, $nombre]
+                );
+                AuditService::log('inventario.marca.crear_rapido', "Marca creada: {$nombre}", null, 'marca', [], $empresaId);
+            } catch (\Throwable $e) {
+                $this->json(['error' => $e->getMessage()], 500);
+                return;
+            }
+        }
+
+        $this->json(['success' => true, 'marca' => ['nombre' => $nombre]]);
+    }
 }

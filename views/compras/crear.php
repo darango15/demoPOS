@@ -57,13 +57,68 @@
             <div class="space-y-5">
                 <div class="flex items-baseline gap-4">
                     <label class="text-sm font-semibold text-gray-700 w-44 shrink-0">Proveedor</label>
-                    <select x-model="compra.proveedor_id"
-                        class="flex-1 py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none text-gray-800">
-                        <option value="">— Seleccionar —</option>
-                        <?php foreach ($proveedores as $p): ?>
-                        <option value="<?= $p->proveedor_id ?>"><?= htmlspecialchars($p->nombre) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div class="flex-1 flex items-center gap-2">
+                        <select x-model="compra.proveedor_id"
+                            class="flex-1 py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none text-gray-800">
+                            <option value="">— Seleccionar —</option>
+                            <template x-for="p in proveedores" :key="p.id">
+                                <option :value="p.id" x-text="p.nombre"></option>
+                            </template>
+                        </select>
+                        <button type="button" @click="abrirModalProveedor()"
+                            class="shrink-0 text-emerald-500 hover:text-emerald-700 transition-colors" title="Crear proveedor nuevo">
+                            <i class="fas fa-plus-circle text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modal: Crear proveedor rápido -->
+                <div x-show="modalProveedor" class="fixed inset-0 z-50 flex items-center justify-center" x-cloak>
+                    <div class="fixed inset-0 bg-gray-900/50" @click="modalProveedor = false"></div>
+                    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 z-10">
+                        <div class="p-6">
+                            <div class="flex items-center gap-3 mb-5">
+                                <div class="w-9 h-9 bg-sky-100 rounded-xl flex items-center justify-center shrink-0">
+                                    <i class="fas fa-truck text-sky-600 text-sm"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-base font-bold text-gray-900">Nuevo proveedor</h3>
+                                    <p class="text-xs text-gray-400">Se creará en el directorio</p>
+                                </div>
+                            </div>
+                            <div class="space-y-3 mb-5">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Nombre *</label>
+                                    <input type="text" x-model="nuevoProveedor.nombre" @keydown.enter.prevent="crearProveedor()"
+                                        placeholder="Ej: Distribuidora Nacional S.A."
+                                        class="w-full py-2 px-3 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-sky-400 focus:border-sky-400 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Teléfono</label>
+                                    <input type="text" x-model="nuevoProveedor.telefono" @keydown.enter.prevent="crearProveedor()"
+                                        placeholder="+507 000-0000"
+                                        class="w-full py-2 px-3 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-sky-400 focus:border-sky-400 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">RUC</label>
+                                    <input type="text" x-model="nuevoProveedor.ruc" @keydown.enter.prevent="crearProveedor()"
+                                        placeholder="Ej: 888-000-00000"
+                                        class="w-full py-2 px-3 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-sky-400 focus:border-sky-400 outline-none font-mono">
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button type="button" @click="modalProveedor = false"
+                                    class="flex-1 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+                                    Cancelar
+                                </button>
+                                <button type="button" @click="crearProveedor()" :disabled="creandoProv"
+                                    class="flex-1 py-2 bg-sky-500 text-white rounded-lg text-sm font-semibold hover:bg-sky-600 transition shadow-sm disabled:opacity-50">
+                                    <i class="fas fa-plus mr-1"></i>
+                                    <span x-text="creandoProv ? 'Creando...' : 'Crear y seleccionar'"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="flex items-baseline gap-4">
                     <label class="text-sm font-semibold text-gray-700 w-44 shrink-0">
@@ -185,11 +240,23 @@
                                         placeholder="Ej: MART-001"
                                         class="w-full py-2 px-3 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 outline-none font-mono">
                                 </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Costo unitario ($)</label>
-                                    <input type="number" step="0.0001" min="0" x-model.number="nuevoProducto.costo"
-                                        placeholder="0.00"
-                                        class="w-full py-2 px-3 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 outline-none">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-600 mb-1">Costo ($)</label>
+                                        <input type="number" step="0.0001" min="0" x-model.number="nuevoProducto.costo"
+                                            placeholder="0.00"
+                                            class="w-full py-2 px-3 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-600 mb-1">Categoría</label>
+                                        <select x-model="nuevoProducto.categoria_id"
+                                            class="w-full py-2 px-3 text-sm rounded-lg border border-gray-200 focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 outline-none bg-white">
+                                            <option value="">— Sin categoría —</option>
+                                            <?php foreach (($categorias ?? []) as $cat): ?>
+                                            <option value="<?= $cat['categoria_id'] ?>"><?= htmlspecialchars($cat['nombre']) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
 
@@ -330,12 +397,17 @@
 <script>
 function compraForm() {
     return {
+        proveedores: <?= json_encode(array_map(fn($p) => ['id' => $p->proveedor_id, 'nombre' => $p->nombre], $proveedores ?? [])) ?>,
+        modalProveedor: false,
+        creandoProv: false,
+        nuevoProveedor: { nombre: '', telefono: '', ruc: '' },
+
         searchQuery: '',
         resultados: [],
         buscado: false,
         modalCrear: false,
         creando: false,
-        nuevoProducto: { nombre: '', codigo: '', costo: 0 },
+        nuevoProducto: { nombre: '', codigo: '', costo: 0, categoria_id: '' },
         items: [],
         compra: {
             proveedor_id: '',
@@ -357,16 +429,50 @@ function compraForm() {
             } catch (e) { console.error(e); }
         },
 
-        abrirModalCrear() {
+        abrirModalProveedor() {
+            this.nuevoProveedor = { nombre: '', telefono: '', ruc: '' };
+            this.modalProveedor = true;
+            this.$nextTick(() => this.$el.querySelector('[x-model="nuevoProveedor.nombre"]')?.focus());
+        },
+
+        async crearProveedor() {
+            if (!this.nuevoProveedor.nombre.trim()) return alert('El nombre es requerido.');
+            this.creandoProv = true;
+            try {
+                const r = await fetch('/api/compras/proveedor-rapido', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.nuevoProveedor)
+                });
+                const d = await r.json();
+                if (d.success) {
+                    this.proveedores.push(d.proveedor);
+                    this.compra.proveedor_id = d.proveedor.id;
+                    this.modalProveedor = false;
+                    this.nuevoProveedor = { nombre: '', telefono: '', ruc: '' };
+                } else {
+                    alert('Error: ' + d.error);
+                }
+            } catch (e) {
+                alert('Error al crear el proveedor.');
+            }
+            this.creandoProv = false;
+        },
+
+        async abrirModalCrear() {
             const q = this.searchQuery.trim();
-            this.nuevoProducto = {
-                nombre: q,
-                codigo: q.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().substring(0, 10),
-                costo: 0
-            };
+            this.nuevoProducto = { nombre: q, codigo: 'Generando...', costo: 0, categoria_id: '' };
             this.resultados = [];
             this.buscado = false;
             this.modalCrear = true;
+
+            try {
+                const r = await fetch('/api/compras/siguiente-codigo');
+                const d = await r.json();
+                this.nuevoProducto.codigo = d.codigo || '';
+            } catch (e) {
+                this.nuevoProducto.codigo = '';
+            }
         },
 
         async crearProducto() {
