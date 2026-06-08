@@ -232,11 +232,35 @@ class ProductoController extends Controller
     {
         if (!$this->verifyCsrf()) return;
 
+        // Verificar si el producto tiene movimientos en otras tablas
+        $tablas = [
+            'ventas_detalle'       => 'ventas',
+            'compras_detalle'      => 'compras',
+            'cotizaciones_detalle' => 'cotizaciones',
+            'traslados_detalle'    => 'traslados',
+        ];
+        foreach ($tablas as $tabla => $label) {
+            $n = (int) Database::query(
+                "SELECT COUNT(*) AS n FROM {$tabla} WHERE producto_id = ?",
+                [$producto_id]
+            )->fetch()['n'];
+            if ($n > 0) {
+                $this->error(
+                    "No se puede eliminar: el producto tiene {$n} registro(s) en {$label}. " .
+                    "Desactívalo en su lugar para que deje de aparecer en búsquedas."
+                );
+                $this->redirect('/inventario');
+                return;
+            }
+        }
+
         try {
             ServiceFactory::getDeleteProductUseCase()->execute($producto_id, $this->empresaId());
             $this->success('Producto eliminado exitosamente.');
         } catch (\DomainException $e) {
             $this->error($e->getMessage());
+        } catch (\Throwable $e) {
+            $this->error('No se puede eliminar el producto porque tiene datos asociados. Desactívalo en su lugar.');
         }
 
         $this->redirect('/inventario');
