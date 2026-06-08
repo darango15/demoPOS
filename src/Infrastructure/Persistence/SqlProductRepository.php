@@ -92,7 +92,7 @@ final class SqlProductRepository implements ProductRepositoryPort
             $row['codigo'],
             $row['nombre'],
             (int) $row['empresa_id'],
-            (int) ($row['categoria_id'] ?? 0),
+            isset($row['categoria_id']) && $row['categoria_id'] !== null ? (int) $row['categoria_id'] : null,
             Money::fromFloat((float) $row['costo']),
             (float) $row['itbms'],
             $row['estado'],

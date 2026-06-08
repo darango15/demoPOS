@@ -17,7 +17,7 @@ final class RegisterProductCommand
         public readonly int     $companyId,
         public readonly string  $sku,
         public readonly string  $name,
-        public readonly int     $categoryId,
+        public readonly ?int    $categoryId,
         public readonly float   $cost,
         public readonly float   $taxRate       = 0.07,
         public readonly float   $minStock      = 0,

@@ -15,7 +15,7 @@ final class Product
     private string $sku;
     private string $name;
     private int $companyId;
-    private int $categoryId;
+    private ?int $categoryId;
     private Money $cost;
     private float $taxRate;
     private string $status;
@@ -33,7 +33,7 @@ final class Product
         string $sku,
         string $name,
         int $companyId,
-        int $categoryId,
+        ?int $categoryId,
         Money $cost,
         float $taxRate = 0.07,
         string $status = 'activo',
@@ -91,7 +91,7 @@ final class Product
     public function sku(): string { return $this->sku; }
     public function name(): string { return $this->name; }
     public function companyId(): int { return $this->companyId; }
-    public function categoryId(): int { return $this->categoryId; }
+    public function categoryId(): ?int { return $this->categoryId; }
     public function cost(): Money { return $this->cost; }
     public function taxRate(): float { return $this->taxRate; }
     public function status(): string { return $this->status; }
