@@ -429,14 +429,15 @@ class ProductoController extends Controller
 
             Database::query(
                 "INSERT INTO productos_unidades
-                    (producto_id, nombre, factor_conversion, precio_a, precio_b, codigo_barras)
-                 VALUES (?, ?, ?, ?, ?, ?)",
+                    (producto_id, nombre, factor_conversion, precio_a, precio_b, precio_c, codigo_barras)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)",
                 [
                     $productoId,
                     $nombre,
                     $factor,
                     (float) ($u['precio_a'] ?? 0),
                     (float) ($u['precio_b'] ?? 0),
+                    (float) ($u['precio_c'] ?? 0),
                     trim($u['codigo_barras'] ?? ''),
                 ]
             );

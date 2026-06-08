@@ -121,6 +121,7 @@
                         <th class="px-4 py-3 text-center">Unidades</th>
                         <th class="px-4 py-3 text-right text-sky-600">Precio A</th>
                         <th class="px-4 py-3 text-right text-emerald-600">Precio B</th>
+                        <th class="px-4 py-3 text-right text-violet-600">Precio C</th>
                         <th class="px-4 py-3 text-right">Cód. Barras</th>
                     </tr>
                 </thead>
@@ -130,6 +131,7 @@
                         <td class="px-4 py-3 text-center text-gray-400">1</td>
                         <td class="px-4 py-3 text-right font-bold text-sky-700">$<?= number_format((float)($precios_map['a'] ?? 0), 2) ?></td>
                         <td class="px-4 py-3 text-right font-bold text-emerald-700">$<?= number_format((float)($precios_map['b'] ?? 0), 2) ?></td>
+                        <td class="px-4 py-3 text-right font-bold text-violet-700">$<?= number_format((float)($precios_map['c'] ?? 0), 2) ?></td>
                         <td class="px-4 py-3 text-right text-gray-300">—</td>
                     </tr>
                     <?php foreach (($unidades ?? []) as $u): ?>
@@ -138,6 +140,7 @@
                         <td class="px-4 py-3 text-center text-gray-600"><?= number_format((float)$u['factor_conversion'], 2) ?></td>
                         <td class="px-4 py-3 text-right font-bold text-sky-700">$<?= number_format((float)$u['precio_a'], 2) ?></td>
                         <td class="px-4 py-3 text-right font-bold text-emerald-700">$<?= number_format((float)$u['precio_b'], 2) ?></td>
+                        <td class="px-4 py-3 text-right font-bold text-violet-700">$<?= number_format((float)($u['precio_c'] ?? 0), 2) ?></td>
                         <td class="px-4 py-3 text-right text-gray-400 font-mono text-xs"><?= View::e($u['codigo_barras'] ?: '—') ?></td>
                     </tr>
                     <?php endforeach; ?>
